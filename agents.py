@@ -46,6 +46,8 @@ Here are the tasks that have been complete thus far: {completed_tasks}
 Here are the tools you have access to: {tool_description}
 Here is an executive summary of the information gathered so far {executive_summary}
 
+If a task has already been completed, do not write that same task again in the task list. If you would like a worker to continue or redo a task, be sure to word it a little differently so you don't get the same result.
+
 ===
 
 Please update the task list and follow this format.
@@ -79,7 +81,7 @@ Note: To be sure that TASKS is a valid python list, it should always start with 
 
 
 def worker_agent(objective:str,task: str, context) -> str:
-    prompt=f"""You are an AI who performs one task based on the following objective: {objective}. Here is some helpful context: {context}"""
+    prompt=f"""You are an AI who performs one task based on the following objective: {objective}. Here is the result of some similar previous tasks: {context}. Try to not produce the same result. If you are writing code, tweak the parameters or query so that you get a slightly different result."""
     python = False
 
     if any(tool in task for tool in tools):
@@ -95,11 +97,10 @@ def worker_agent(objective:str,task: str, context) -> str:
 def data_cleaning_agent(result: str, objective: str) -> str:
     # When I include task it over filters the data.
 
-    prompt = f"""You are an AI who takes some information that relates to an objective. The result may or may not be messy and have redundancies. Your job is to clean and organize the data. 
-It is important that you do not delete any information that could be useful for the objective. Respond with only the updated information.
-Task result: {result}
+    prompt = f"""You are an AI who summarizes, cleans, and organizes data. It is important that you do not delete any information that could be useful for the objective. Respond with only the updated information.
+Data: {result}
 Objective: {objective}
-Updated result:"""
+Cleaned Data:"""
     response = get_gpt_completion(prompt.strip(), engine="text-davinci-003", temp=0.1)
 
     return response
