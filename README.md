@@ -18,14 +18,14 @@ BE MINDFUL OF EXPENSES!!<br>
     - Currently an execution for a few minutes should cost no more than a few cents. This will go up if you use a more powerful model like GPT-4<br>
 
 NOTE:<br>
-    At the bottom of the main.py loop there is a break statement to safeguard against the loop running forever.<br>
+At the bottom of the main.py loop there is a break statement to safeguard against the loop running forever.<br>
 
 ```py
-    if task_id_counter > 15:
-        break
+if task_id_counter > 15:
+    break
 ```
  
-    The program will cease execution after 15 iterations and your state will be lost. This is fine while we continue developement, but once the program starts to produce useful outputs this should change.<br>
+The program will cease execution after 15 iterations and your state will be lost. This is fine while we continue developement, but once the program starts to produce useful outputs this should change.<br>
 
 
 ## TODOs
