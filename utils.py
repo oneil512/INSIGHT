@@ -78,11 +78,13 @@ def generate_tool_prompt(task):
     
     api_info = api_info_mapping[api_name]
 
-    prompt = f"""You have access to query the {api_name} API. If a task starts with '{api_name}:' then you should create the code to query the {api_name} API based off the documentation and return the code to complete your task. If you use the {api_name} API, do not answer with words, simply answer with the code to query the API and then cease output. Be sure that it is a valid API call that will execute in a python interpreter
+    prompt = f"""You have access to query the {api_name} API. If a task starts with '{api_name}:' then you should create the code to query the {api_name} API based off the documentation and return the code to complete your task. If you use the {api_name} API, do not answer with words, simply answer with the code to query the API and then cease output. Be sure that it is a valid API call that will execute in a python interpreter.
 ---
 Here is the {api_name} documentation
 {api_info}
 ---
+
+The example doesn't have to be followed exactly. You should change it to fit your specific task.
 
         """.strip()
     

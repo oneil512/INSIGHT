@@ -53,6 +53,9 @@ print(Fore.CYAN, '\n*****OBJECTIVE*****\n')
 print(OBJECTIVE)
 
 while True:
+    result_code = None
+    python = False
+
     if task_id_counter > 1:
         executive_summary = query_knowledge_base(llama_index)
     else:
@@ -83,7 +86,7 @@ while True:
 
         context = ""
         if task_id_counter > 1:
-            context = get_relevant(task, pinecone_index, num_relevant=3)
+            context = get_relevant(task, pinecone_index, num_relevant=1)
 
         print(Fore.RED + "\n*****NEXT TASK*****\n")
         print("task id: ", task_id_counter, 'task: ', task)
@@ -94,17 +97,19 @@ while True:
         print(Fore.GREEN + result)
 
         if python:
+            result_code = result
             result = execute_python(result)
 
         #if 'MYGENE' in task:
         # potential post processing
 
-        if 'PUBMED' in task:
-            # Text is often too large so we break it up
+        if type(result) is list:
+            # Text is often too large so we break it up. Pubmed and mygene return lists
             cleaned_results = []
-            for article in result:
-                cleaned_results.append(data_cleaning_agent(article, OBJECTIVE))
+            for r in result:
+                cleaned_results.append(data_cleaning_agent(r, OBJECTIVE))
             
+            # can still be large. maybe just vectorize them seperately?
             cleaned_result = '\n\n'.join(cleaned_results)
         else:
             cleaned_result = data_cleaning_agent(result, OBJECTIVE)
@@ -113,9 +118,17 @@ while True:
         print(Fore.BLUE + cleaned_result)
 
         # Store data
-        vectorized_data = get_ada_embedding(cleaned_result)
-        
+
         # Insert result into pinecone
+        if python:
+            # If the task to use a tool and create code, we want the worker to see the previous code they made to do the same/similar task. The hope is they will know to tweak the parameters/search terms
+            vectorized_task_name = get_ada_embedding(task)
+            task_id = f"doc_id_code_{task_id_counter}"
+            if result_code is not None:
+                metadata = {"Task": task, "Result": result_code}
+                insert_doc_pinecone(pinecone_index, vectorized_task_name, task_id, metadata)
+
+        vectorized_data = get_ada_embedding(cleaned_result)
         task_id = f"doc_id_{task_id_counter}"
         metadata = {"Task": task, "Result": cleaned_result}
         insert_doc_pinecone(pinecone_index, vectorized_data, task_id, metadata)
