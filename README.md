@@ -19,10 +19,12 @@ BE MINDFUL OF EXPENSES!!<br>
 
 NOTE:<br>
     At the bottom of the main.py loop there is a break statement to safeguard against the loop running forever.<br>
+
         ```py
         if task_id_counter > 15:
             break
         ```
+        
     The program will cease execution after 15 iterations and your state will be lost. This is fine while we continue developement, but once the program starts to produce useful outputs this should change.<br>
 
 
