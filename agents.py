@@ -1,0 +1,106 @@
+import openai
+import os
+
+from collections import deque
+from typing import List
+from ast import literal_eval
+
+from utils import generate_tool_prompt, get_gpt_completion, get_gpt_chat_completion
+
+openai.api_key = os.environ['OPENAI_API_KEY']
+openai.organization = os.environ['OPENAI_ORG']
+tools = ["MYGENE", "PUBMED"]
+
+
+def boss_agent(objective: str, tool_description: str, task_list: List[str], executive_summary="No tasks completed Yet.", completed_tasks=List[str]):
+
+    system_prompt = """You are BossGPT, a responsible and organized agent that is responsible for completing a high level and difficult objective. 
+As the boss, your goal is to break the high level objective down into small and managable tasks for your workers. These tasks will be picked up by your worker agents and completed. 
+You will also get an executive summary of what your workers have accomplished so far. Use the summary to make decisions about what tasks to do next, what tasks to get rid of, 
+and to reprioritize tasks. The highest priority task will be at the top of the task list.
+
+You also have access to some tools. You can create a task for your workers to use any of your tools. You cannot use more than one tool per task.
+Your worker agents update the executive summary so that you can use new information from the completed tasks to make informed decisions about what to do next. 
+It is ok to create tasks that do not directly help achieve your objective but rather just serve to add useful information.
+
+Tasks should be a simple python array with strings as elements. Priority is only determined by the order of the elements in the array.
+
+After you have finished generating your task array, cease output.
+
+===
+
+Your responses should in this format:
+
+THOUGHTS
+{Reason about what tasks to add, change, delete, or reprioritize given your objective and world model}
+
+TASKS
+{Python array of tasks}
+
+""".strip()
+    
+    user_prompt = f"""
+Here is your objective: {objective}
+Here is the current task list: {task_list}
+Here are the tasks that have been complete thus far: {completed_tasks}
+Here are the tools you have access to: {tool_description}
+Here is an executive summary of the information gathered so far {executive_summary}
+
+===
+
+Please update the task list and follow this format.
+
+THOUGHTS
+Reason about what tasks to add, change, delete, or reprioritize given your objective and world model
+
+TASKS
+Python array of tasks
+
+===
+
+Here is an example of the tasks list. Be sure that it is valid python:
+
+TASKS
+["Research frog habitats", "Find all species of trees", "Get world population", "Retrieve facts about the american civil war"]
+
+Note: To be sure that TASKS is a valid python list, it should always start with '[' and always end with ']'
+    
+    """.strip()
+    
+    content = get_gpt_chat_completion(system_prompt, user_prompt, temp=0.0)
+
+    thoughts = content[content.find("THOUGHTS") + len("THOUGHTS") : content.find("TASKS")].strip()
+    tasks = content[content.find("TASKS") + len("TASKS") :].strip()
+    tasks = tasks.replace('\n','').replace('/', ' ') # mygene API is breaking from slashes being in the query. Putting this hack in for now. I reached out to the mygene team.
+
+    #parsed_tasks = parser("Parse the following text so that it is a valid python list. Do not alter the elements in any way.", tasks)
+    new_task_list = literal_eval(tasks)
+    return deque(new_task_list), thoughts
+
+
+def worker_agent(objective:str,task: str, context) -> str:
+    prompt=f"""You are an AI who performs one task based on the following objective: {objective}. Here is some helpful context: {context}"""
+    python = False
+
+    if any(tool in task for tool in tools):
+        python = True
+        prompt += generate_tool_prompt(task)
+
+    prompt += f"\nYour task: {task}\nResponse:"
+
+    response = get_gpt_completion(prompt.strip(), engine="text-davinci-003", temp=0.0)
+
+    return response, python
+
+def data_cleaning_agent(result: str, objective: str) -> str:
+    # When I include task it over filters the data.
+
+    prompt = f"""You are an AI who takes some information that relates to an objective. The result may or may not be messy and have redundancies. Your job is to clean and organize the data. 
+It is important that you do not delete any information that could be useful for the objective. Respond with only the updated information.
+Task result: {result}
+Objective: {objective}
+Updated result:"""
+    response = get_gpt_completion(prompt.strip(), engine="text-davinci-003", temp=0.1)
+
+    return response
+
