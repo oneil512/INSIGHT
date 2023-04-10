@@ -11,14 +11,21 @@ API Examples
 Here is an example showing how to find genes that are associated with diabetes and then find more information on those genes.
 
 The size parameter controls how many genes you will get back.
+The from_ parameter controls where in the results to start selecting from.
+The query parameter controls what is being searched for
 
 ===
 
 import mygene
 mg = mygene.MyGeneInfo()
 
-query_term = "diabetes"
-gene_results = mg.query(query_term, fields="symbol,name,entrezgene,ensemblgene", species="human", size=15)
+query_term="diabetes"
+fields="symbol,name,entrezgene,ensemblgene"
+species="human"
+size=3
+from_=0
+
+gene_results = mg.query(query_term, fields=fields, species=species, size=size, from_=from_)
 hits = gene_results['hits']
 
 gene_info_list = []

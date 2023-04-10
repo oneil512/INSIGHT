@@ -3,7 +3,9 @@ import openai
 import os
 import backoff
 
+import llama_index
 from llama_index import Document
+from llama_index.indices.composability import ComposableGraph
 
 from pubmed_api import pubmed_api
 from gene_api import gene_api
@@ -16,6 +18,7 @@ api_info_mapping = {"mygene": gene_api, "PubMed": pubmed_api}
 
 openai.api_key = os.environ['OPENAI_API_KEY']
 openai.organization = os.environ['OPENAI_ORG']
+llama_index.llm_predictor.base.openai.organization = os.environ['OPENAI_ORG']
 
 
 def num_tokens_from_string(string: str, encoding_name: str = 'gpt2') -> int:
@@ -51,6 +54,26 @@ def execute_python(code: str):
 def prune_gene_results(res):
     pass
 
+def get_mygene_params(code: str):
+
+    l = len('mygene.MyGeneInfo()')
+
+    gene_info_index = code.find('mygene.MyGeneInfo()')
+    if gene_info_index == -1:
+        return
+
+    query_index = code.find('mg.query(')
+    if query_index == -1:
+        return
+    
+    params = code[gene_info_index + l:query_index].strip()
+
+    if params == '':
+        return
+    
+    return params
+
+
 def validate_llm_response(goal, response):
     validation_prompt = f"I gave an LLM this goal: '{goal}' and it gave this response: '{response}'. Is this reasonable, or did something go wrong? [yes|no]"
     validation_response = openai.Completion.create(
@@ -78,7 +101,7 @@ def generate_tool_prompt(task):
     
     api_info = api_info_mapping[api_name]
 
-    prompt = f"""You have access to query the {api_name} API. If a task starts with '{api_name}:' then you should create the code to query the {api_name} API based off the documentation and return the code to complete your task. If you use the {api_name} API, do not answer with words, simply answer with the code to query the API and then cease output. Be sure that it is a valid API call that will execute in a python interpreter.
+    prompt = f"""You have access to query the {api_name} API. If a task starts with '{api_name.upper()}:' then you should create the code to query the {api_name} API based off the documentation and return the code to complete your task. If you use the {api_name} API, do not answer with words, simply answer with the code to query the API and then cease output. Be sure that it is a valid API call that will execute in a python interpreter.
 ---
 Here is the {api_name} documentation
 {api_info}
@@ -100,16 +123,17 @@ def get_relevant(data, pinecone_index, num_relevant=5):
     sorted_results = sorted(results.matches, key=lambda x: x.score, reverse=True)
     return [str(item['metadata']["Result"]) for item in sorted_results]
 
-def insert_doc_pinecone(index, doc, task_index, metadata):
-    index.upsert([(task_index, doc, metadata)])
+def insert_doc_pinecone(index, embedding, doc_id, metadata):
+    index.upsert([(doc_id, embedding, metadata)])
 
-def insert_doc_llama_index(index, doc, task_index):
-    doc = Document(doc, doc_id=task_index)
+def insert_doc_llama_index(index, embedding, doc_id, metadata):
+    doc = Document(text=metadata, embedding=embedding, doc_id=doc_id)
     index.insert(doc)
 
-def query_knowledge_base(llama_index, query="Create an executive summary of the information. Do not include any further instruction.", response_mode="tree_summarize"):
+def query_knowledge_base(llama_index, query="Give a detailed overview of all the information. Start with a high level summary and then go into details. Do not include any further instruction.", response_mode="tree_summarize"):
 
-    query_response = llama_index.query(query, response_mode=response_mode)
+    # From llama index docs: Empirically, setting response_mode="tree_summarize" also leads to better summarization results.
+    query_response = llama_index.query(query, similarity_top_k=10, response_mode=response_mode)
     return query_response.response
 
 def parser(instruction, content):
