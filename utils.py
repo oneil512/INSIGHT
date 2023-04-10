@@ -54,19 +54,16 @@ def execute_python(code: str):
 def prune_gene_results(res):
     pass
 
-def get_mygene_params(code: str):
+def get_code_params(code: str, preparam_text: str, postparam_text: str):
+    l = len(preparam_text)
 
-    l = len('mygene.MyGeneInfo()')
+    preparam_index = code.find(preparam_text)
+    postparam_index = code.find(postparam_text)
 
-    gene_info_index = code.find('mygene.MyGeneInfo()')
-    if gene_info_index == -1:
-        return
-
-    query_index = code.find('mg.query(')
-    if query_index == -1:
+    if preparam_index == -1 or postparam_index == -1:
         return
     
-    params = code[gene_info_index + l:query_index].strip()
+    params = code[preparam_index + l:postparam_index].strip()
 
     if params == '':
         return
