@@ -19,7 +19,7 @@ search_handle.close()
 
 pubmed_ids = search_results["IdList"]
 
-fetch_handle = Entrez.efetch(db="pubmed", id=pubmed_ids, rettype="abstract", retmode="text")
+fetch_handle = Entrez.efetch(db="pubmed", id=pubmed_ids, rettype="abstract", retmode="xml")
 abstracts = fetch_handle.read()
 fetch_handle.close()
 

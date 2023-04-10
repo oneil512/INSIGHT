@@ -80,28 +80,26 @@ Note: To be sure that TASKS is a valid python list, it should always start with 
     return deque(new_task_list), thoughts
 
 
-def worker_agent(objective:str,task: str, context) -> str:
-    prompt=f"""You are an AI who performs one task based on the following objective: {objective}. Here is the result of some similar previous tasks: {context}. Try to not produce the same result. If you are writing code, tweak the parameters or query so that you get a slightly different result."""
-    python = False
-
-    if any(tool in task for tool in tools):
-        python = True
+def worker_agent(objective:str,task: str, context: str, previous_params: str = None, python: bool = False) -> str:
+    if python:
+        prompt=f"""You are an AI who performs one task based on the following objective: {objective}. You will be writing code for your task. Here are the parameters used in the code from previous tasks {previous_params}. Do not use the same parameters and query again; instead use tweak the parameters or query so that you get a slightly different result."""
         prompt += generate_tool_prompt(task)
+    else:
+        prompt=f"""You are an AI who performs one task based on the following objective: {objective}. Here is the result of some similar previous tasks: {context}. Try to not produce the same result. Be creative so that we can get new information."""
 
     prompt += f"\nYour task: {task}\nResponse:"
 
-    response = get_gpt_completion(prompt.strip(), engine="text-davinci-003", temp=0.0)
+    response = get_gpt_completion(prompt, engine="text-davinci-003", temp=0.0)
 
-    return response, python
+    return response
 
 def data_cleaning_agent(result: str, objective: str) -> str:
     # When I include task it over filters the data.
 
-    prompt = f"""You are an AI who summarizes, cleans, and organizes data. It is important that you do not delete any information that could be useful for the objective. Respond with only the updated information.
+    prompt = f"""You are an AI who summarizes, cleans, and organizes data. It is important that you do not delete any information that could be useful. Respond with only the updated information.
 Data: {result}
-Objective: {objective}
 Cleaned Data:"""
-    response = get_gpt_completion(prompt.strip(), engine="text-davinci-003", temp=0.1)
+    response = get_gpt_completion(prompt, engine="text-davinci-003", temp=0.1)
 
     return response
 

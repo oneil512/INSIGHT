@@ -2,38 +2,40 @@ import os
 import time
 
 from colorama import Fore
-from collections import deque
+from collections import deque, defaultdict
 from Bio import Entrez
+import xml.etree.ElementTree as ET
 
 import pinecone
 from llama_index import GPTSimpleVectorIndex
 
 from agents import boss_agent, worker_agent, data_cleaning_agent
-from utils import execute_python, get_ada_embedding, get_relevant, insert_doc_llama_index, insert_doc_pinecone, query_knowledge_base
+from utils import execute_python, get_ada_embedding, get_relevant, insert_doc_llama_index, insert_doc_pinecone, query_knowledge_base, get_mygene_params
 
 Entrez.email = os.environ['EMAIL']
 
-PINECONE_API_KEY = os.environ['PINECONE_API_KEY']
-PINECONE_ENV = os.environ['PINECONE_ENV']
+#PINECONE_API_KEY = os.environ['PINECONE_API_KEY']
+#PINECONE_ENV = os.environ['PINECONE_ENV']
 
 MAX_TOKENS = 4097
 OBJECTIVE = "Cure breast cancer"
+tools = ["MYGENE", "PUBMED"]
 
 
 # Configure Pinecone
-pinecone.init(api_key=PINECONE_API_KEY, environment=PINECONE_ENV)
+#pinecone.init(api_key=PINECONE_API_KEY, environment=PINECONE_ENV)
 
 # Create Pinecone index
-table_name = "insight-1"
-dimension = 1536
-metric = "cosine"
-pod_type = "p1"
+#table_name = "insight-1"
+#dimension = 1536
+#metric = "cosine"
+#pod_type = "p1"
 
-if table_name not in pinecone.list_indexes():
-    pinecone.create_index(table_name, dimension=dimension, metric=metric, pod_type=pod_type)
+#if table_name not in pinecone.list_indexes():
+#    pinecone.create_index(table_name, dimension=dimension, metric=metric, pod_type=pod_type)
 
 # Connect to the index
-pinecone_index = pinecone.Index(table_name)
+#pinecone_index = pinecone.Index(table_name)
 
 # Create llama index
 llama_index = GPTSimpleVectorIndex([])
@@ -42,8 +44,8 @@ task_id_counter = 1
 task_list = deque()
 
 tool_description = """
-1) Query mygene API. This is useful for finding information on genes that are associated with diseases. If you wish to make a task to create an API request to mygene then simply say 'MYGENE:' followed by what you would like to search for. Example: 'MYGENE: look up information on genes that are linked to cancer'
-2) Query PubMed API. This is useful for searching biomedical literature citations and abstracts. If you wish to make a task to create an API request to the PubMed API then simply say 'PUBMED:' followed by what you would like to search for.
+1) Query mygene API. This is useful for finding information on specific genes, or genes associated with the search query. If you wish to make a task to create an API request to mygene then simply say 'MYGENE:' followed by what you would like to search for. Example: 'MYGENE: look up information on genes that are linked to cancer'
+2) Query PubMed API. This is useful for searching biomedical literature and studies on any medical subject. If you wish to make a task to create an API request to the PubMed API then simply say 'PUBMED:' followed by what you would like to search for. Example: 'PUBMED: Find recent developments in HIV research'
 """.strip()
 
 #"Query PubChem API. This is useful for finding chemical information. Search chemicals by name, molecular formula, structure, and other identifiers. Find chemical and physical properties, biological activities, safety and toxicity information, patents, literature citations and more. If you wish to make a task to create an API request to PubChem then simply say 'PubChem:' followed by what you would like to search for. Example: 'PubChem: look up information on genes that are linked to cancer'
@@ -52,9 +54,12 @@ completed_tasks = []
 print(Fore.CYAN, '\n*****OBJECTIVE*****\n')
 print(OBJECTIVE)
 
+cache = defaultdict(list)
+
 while True:
     result_code = None
     python = False
+    cache_params = None
 
     if task_id_counter > 1:
         executive_summary = query_knowledge_base(llama_index)
@@ -86,12 +91,22 @@ while True:
 
         context = ""
         if task_id_counter > 1:
-            context = get_relevant(task, pinecone_index, num_relevant=1)
+            context = query_knowledge_base(llama_index, query=f"Provide as much useful context as possible for this task: {task}")
+            #context = get_relevant(task, pinecone_index, num_relevant=1)
+
+        if any(tool in task for tool in tools):
+            python = True
+
+        if 'MYGENE' in task and 'MYGENE' in cache:
+            cache_params = cache['MYGENE']
+        
+        if 'PUBMED' in task and 'PUBMED' in cache:
+            cache_params = cache['PUBMED']
 
         print(Fore.RED + "\n*****NEXT TASK*****\n")
         print("task id: ", task_id_counter, 'task: ', task)
 
-        result, python = worker_agent(OBJECTIVE, task, context)
+        result = worker_agent(OBJECTIVE, task, context, cache_params, python)
         completed_tasks.append(task)
         print(Fore.GREEN + '\n*****TASK RESULT*****\n')
         print(Fore.GREEN + result)
@@ -100,8 +115,11 @@ while True:
             result_code = result
             result = execute_python(result)
 
-        #if 'MYGENE' in task:
-        # potential post processing
+        if 'PUBMED' in task:
+            root = ET.fromstring(result)
+            result = []
+            for AbstractText in root.iter('AbstractText'):
+                result.append(AbstractText.text)
 
         if type(result) is list:
             # Text is often too large so we break it up. Pubmed and mygene return lists
@@ -109,32 +127,29 @@ while True:
             for r in result:
                 cleaned_results.append(data_cleaning_agent(r, OBJECTIVE))
             
-            # can still be large. maybe just vectorize them seperately?
-            cleaned_result = '\n\n'.join(cleaned_results)
         else:
-            cleaned_result = data_cleaning_agent(result, OBJECTIVE)
+            cleaned_results = [data_cleaning_agent(result, OBJECTIVE)]
 
         print(Fore.BLUE + '\n*****CLEANED RESULT*****\n')
-        print(Fore.BLUE + cleaned_result)
+        for cleaned_result in cleaned_results:
+            print(Fore.BLUE + cleaned_result)
 
         # Store data
 
         # Insert result into pinecone
         if python:
-            # If the task to use a tool and create code, we want the worker to see the previous code they made to do the same/similar task. The hope is they will know to tweak the parameters/search terms
-            vectorized_task_name = get_ada_embedding(task)
-            task_id = f"doc_id_code_{task_id_counter}"
-            if result_code is not None:
-                metadata = {"Task": task, "Result": result_code}
-                insert_doc_pinecone(pinecone_index, vectorized_task_name, task_id, metadata)
+            if 'MYGENE' in task:
+                params = get_mygene_params(result_code)
+                cache['MYGENE'].append(params)
 
-        vectorized_data = get_ada_embedding(cleaned_result)
-        task_id = f"doc_id_{task_id_counter}"
-        metadata = {"Task": task, "Result": cleaned_result}
-        insert_doc_pinecone(pinecone_index, vectorized_data, task_id, metadata)
+        for i, cleaned_result in enumerate(cleaned_results):
+            vectorized_data = get_ada_embedding(cleaned_result)
+            task_id = f"doc_id_{task_id_counter}_{i}"
+            metadata = {"Task": task, "Result": cleaned_result}
 
-        # Insert result into llama_index
-        insert_doc_llama_index(llama_index, cleaned_result, task_id)
+            #insert_doc_pinecone(pinecone_index, vectorized_data, task_id, metadata)
+
+            insert_doc_llama_index(llama_index, vectorized_data, task_id, cleaned_result)
 
         # TODO
         # Results that we store in pinecone every iteration might have considerable overlap.
