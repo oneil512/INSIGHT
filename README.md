@@ -37,21 +37,27 @@ The program will cease execution after 15 iterations and your state will be lost
 Right now it seems to get overly focused on one area. Better executive summaries might fix this.
     - Look into composable indicies with llama index
 
+
 Explicitly inform boss about worker errors. Ensure boss handles them gracefully.<br>
-    - example: code execution issue<br><br>
+    - example: code execution issue
+
 
 Expand APIs<br>
     - more useful examples<br>
     - different APIs<br>
-    - NOTE: prompt space is out most scarce commodity. Be as terse as possible and be careful not to add redundancies<br><br>
+    - NOTE: prompt space is out most scarce commodity. Be as terse as possible and be careful not to add redundancies
+
 
 Implement token limit constraints<br>
-    - currently it's possible to pass an agent a prompt with say 4096 tokens, leaving it space for only one single token for its completion. This should be fixed, but whatever error is passed should be propagated and fixed gracefully<br>
+    - currently it's possible to pass an agent a prompt with say 4096 tokens, leaving it space for only one single token for its completion. This should be fixed, but whatever error is passed should be propagated and fixed gracefully
+
 
 Rework project structure<br>
-    - potentially abstractions as well?<br>
+    - potentially abstractions as well?
 
-Allow way to save and reload program<br>
+
+Allow way to save and reload program
+
 
 Implement logging<br>
     - Ideally the output of every run should be saved to its own log file<br>
