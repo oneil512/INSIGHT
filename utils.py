@@ -4,7 +4,6 @@ import os
 import backoff
 
 import logging
-logging.getLogger('llama_index').setLevel(logging.WARNING)
 
 import llama_index
 from llama_index import Document
@@ -15,7 +14,8 @@ from gene_api import gene_api
 from functools import partial
 
 import logging
-import sys
+
+logging.getLogger('llama_index').setLevel(logging.WARNING)
 
 
 MAX_TOKENS = 4097
@@ -125,15 +125,6 @@ def get_ada_embedding(text):
         # There must be a better way to do this. at least parse some of the json out if it is json
         text = text[:ada_embedding_max_size]
     return openai.Embedding.create(input=[text], model="text-embedding-ada-002")["data"][0]["embedding"]
-
-def get_relevant(data, pinecone_index, num_relevant=5):
-    query_embedding = get_ada_embedding(data)
-    results = pinecone_index.query(query_embedding, top_k=num_relevant, include_metadata=True)
-    sorted_results = sorted(results.matches, key=lambda x: x.score, reverse=True)
-    return [str(item['metadata']["Result"]) for item in sorted_results]
-
-def insert_doc_pinecone(index, embedding, doc_id, metadata):
-    index.upsert([(doc_id, embedding, metadata)])
 
 def insert_doc_llama_index(index, embedding, doc_id, metadata):
     doc = Document(text=metadata, embedding=embedding, doc_id=doc_id)
