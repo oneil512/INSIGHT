@@ -1,6 +1,6 @@
 # INSIGHT
 
-Insight is an autonomous AI that can do medical research. It has a boss agent that takes an objective and some context (to come later) and creates a task list. A worker agent picks up a task from the list and completes it, saving the results to llama index. The boss gets informed of the results and changes/reprioritizes the task list. The workers can call into the pubmed and mygene APIs (more to come). The workers also get context from llama index to help complete their tasks.
+Insight is an autonomous AI that can do medical research. It has a boss agent that takes an objective and an executive summary of the tasks completed already and their results and creates a task list. A worker agent picks up a task from the list and completes it, saving the results to llama index. The boss gets informed of the results and changes/reprioritizes the task list. The workers can call into the pubmed and mygene APIs (more to come). The workers also get context from llama index to help complete their tasks.
 
 Very much a work in progress, but it is showing some early results!
 
@@ -34,30 +34,36 @@ The program will cease execution after 15 iterations and your state will be lost
 
 ## TODOs
 
-Right now it seems to get overly focused on one area. Better executive summaries might fix this.
+**Right now it seems to get overly focused on one area. Better executive summaries might fix this.**
+
     - Look into composable indicies with llama index
 
 
-Explicitly inform boss about worker errors. Ensure boss handles them gracefully.<br>
+**Explicitly inform boss about worker errors. Ensure boss handles them gracefully.**
+
     - example: code execution issue
 
 
-Expand APIs<br>
+**Expand APIs**
+
     - more useful examples<br>
     - different APIs<br>
     - NOTE: prompt space is out most scarce commodity. Be as terse as possible and be careful not to add redundancies
 
 
-Implement token limit constraints<br>
+**Implement token limit constraints**
+
     - currently it's possible to pass an agent a prompt with say 4096 tokens, leaving it space for only one single token for its completion. This should be fixed, but whatever error is passed should be propagated and fixed gracefully
 
 
-Rework project structure<br>
+**Rework project structure**
+
     - potentially abstractions as well?
 
 
-Allow way to save and reload program
+**Allow way to save and reload program**
 
 
-Implement logging<br>
+**Implement logging**
+
     - Ideally the output of every run should be saved to its own log file<br>
