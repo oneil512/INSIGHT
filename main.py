@@ -7,7 +7,11 @@ from Bio import Entrez
 import xml.etree.ElementTree as ET
 
 import pinecone
+import logging
+logging.getLogger('llama_index').setLevel(logging.WARNING)
+import llama_index
 from llama_index import GPTSimpleVectorIndex
+
 
 from agents import boss_agent, worker_agent, data_cleaning_agent
 from utils import execute_python, get_ada_embedding, get_relevant, insert_doc_llama_index, get_code_params, query_knowledge_base
@@ -121,18 +125,8 @@ while True:
             for AbstractText in root.iter('AbstractText'):
                 result.append(AbstractText.text)
 
-        if type(result) is list:
-            # Text is often too large so we break it up. Pubmed and mygene return lists
-            cleaned_results = []
-            for r in result:
-                cleaned_results.append(data_cleaning_agent(r, OBJECTIVE))
-            
-        else:
-            cleaned_results = [data_cleaning_agent(result, OBJECTIVE)]
-
-        print(Fore.BLUE + '\n*****CLEANED RESULT*****\n')
-        for cleaned_result in cleaned_results:
-            print(Fore.BLUE + cleaned_result)
+        if type(result) is not list:
+            result = [result]
 
         # Store data
         if python:
@@ -144,14 +138,14 @@ while True:
                 params = get_code_params(result_code, preparam_text = "from Bio import Entrez", postparam_text = "search_handle = Entrez.esearch(")
                 cache['PUBMED'].append(params)
 
-        for i, cleaned_result in enumerate(cleaned_results):
-            vectorized_data = get_ada_embedding(cleaned_result)
+        for i, r in enumerate(result):
+            vectorized_data = get_ada_embedding(str(r))
             task_id = f"doc_id_{task_id_counter}_{i}"
-            metadata = {"Task": task, "Result": cleaned_result}
+            metadata = {"Task": task, "Result": str(r)}
 
             #insert_doc_pinecone(pinecone_index, vectorized_data, task_id, metadata)
 
-            insert_doc_llama_index(llama_index, vectorized_data, task_id, cleaned_result)
+            insert_doc_llama_index(llama_index, vectorized_data, task_id, str(r))
 
         # TODO
         # Results that we store in pinecone every iteration might have considerable overlap.

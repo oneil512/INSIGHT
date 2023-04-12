@@ -3,6 +3,9 @@ import openai
 import os
 import backoff
 
+import logging
+logging.getLogger('llama_index').setLevel(logging.WARNING)
+
 import llama_index
 from llama_index import Document
 from llama_index.indices.composability import ComposableGraph
@@ -10,6 +13,10 @@ from llama_index.indices.composability import ComposableGraph
 from pubmed_api import pubmed_api
 from gene_api import gene_api
 from functools import partial
+
+import logging
+import sys
+
 
 MAX_TOKENS = 4097
 
@@ -111,7 +118,12 @@ The example doesn't have to be followed exactly. You should change it to fit you
     return prompt
 
 def get_ada_embedding(text):
+    ada_embedding_max_size = 8191
     text = text.replace("\n", " ")
+
+    if len(text) > ada_embedding_max_size:
+        # There must be a better way to do this. at least parse some of the json out if it is json
+        text = text[:ada_embedding_max_size]
     return openai.Embedding.create(input=[text], model="text-embedding-ada-002")["data"][0]["embedding"]
 
 def get_relevant(data, pinecone_index, num_relevant=5):
@@ -130,7 +142,7 @@ def insert_doc_llama_index(index, embedding, doc_id, metadata):
 def query_knowledge_base(llama_index, query="Give a detailed overview of all the information. Start with a high level summary and then go into details. Do not include any further instruction.", response_mode="tree_summarize"):
 
     # From llama index docs: Empirically, setting response_mode="tree_summarize" also leads to better summarization results.
-    query_response = llama_index.query(query, similarity_top_k=10, response_mode=response_mode)
+    query_response = llama_index.query(query, similarity_top_k=50, response_mode=response_mode)
     return query_response.response
 
 def parser(instruction, content):
