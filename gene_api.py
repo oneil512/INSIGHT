@@ -22,7 +22,7 @@ mg = mygene.MyGeneInfo()
 query_term="diabetes"
 fields="symbol,name,entrezgene,ensemblgene"
 species="human"
-size=3
+size=10
 from_=0
 
 gene_results = mg.query(query_term, fields=fields, species=species, size=size, from_=from_)

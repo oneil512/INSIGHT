@@ -4,16 +4,21 @@ API Examples
 
 Here is an example showing how to find a list of ids of pubmed articles about breast cancer, and then get the abstracts of those studies.
 
-The retmax paramter controls how many abstracts you will get back.
+The retmax parameter controls how many abstracts you will get back.
+The retstart parameter controls where to start looking for results in the result set. This is useful if you have searched this query before and would like to get further results
+The sort parameter can take [relevance|pub_date]
 
 ===
 
-from Bio import Entrez
 import json
+from Bio import Entrez
 
 search_term = "breast cancer"
+retmax=6
+retstart=0
+sort='relevance'
 
-search_handle = Entrez.esearch(db="pubmed", term=search_term, retmax=6)
+search_handle = Entrez.esearch(db="pubmed", term=search_term, retmax=retmax, retstart=retstart, sort=sort)
 search_results = Entrez.read(search_handle)
 search_handle.close()
 
