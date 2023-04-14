@@ -90,11 +90,6 @@ The program will cease execution after 15 iterations and your state will be lost
 * currently it's possible to pass an agent a prompt with say 4096 tokens, leaving it space for only one single token for its completion. This should be fixed, but whatever error is passed should be propagated and fixed gracefully
 
 
-**Rework project structure**
-
-* potentially abstractions as well?
-
-
 **Allow way to save and reload program**
 
 
