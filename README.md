@@ -16,12 +16,12 @@ graph TB;
     end;
 
     Boss((BOSS AGENT)) <--> GPT[LLM];
-    Llama[(LLAMA INDEX)] --> Boss;
+    Llama[(LLAMA INDEX)] -->|Summary of results| Boss;
     Boss -->|Create| Queue[TASK LIST];
 
     Worker((WORKER AGENT)) <--> GPT;
     Queue --> |Pull| Worker;
-    Llama --> Worker;
+    Llama -->|Context for task| Worker;
     Worker --> Result[Task Result];
 
     Result --> |Text| Llama;
