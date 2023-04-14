@@ -9,8 +9,8 @@ import llama_index
 from llama_index import Document
 from llama_index.indices.composability import ComposableGraph
 
-from pubmed_api import pubmed_api
-from gene_api import gene_api
+from APIs.pubmed_api import pubmed_api
+from APIs.mygene_api import mygene_api
 from functools import partial
 
 import logging
@@ -20,7 +20,7 @@ logging.getLogger('llama_index').setLevel(logging.WARNING)
 
 MAX_TOKENS = 4097
 
-api_info_mapping = {"mygene": gene_api, "PubMed": pubmed_api}
+api_info_mapping = {"mygene": mygene_api, "PubMed": pubmed_api}
 
 
 openai.api_key = os.environ['OPENAI_API_KEY']
