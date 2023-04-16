@@ -1,4 +1,4 @@
-gene_api = """
+mygene_api = """
 
 API Rules
     - Every code block that calls to the mygene api must start with these two lines:

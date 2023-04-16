@@ -32,7 +32,6 @@ tool_description = """
 2) Query PubMed API. This is useful for searching biomedical literature and studies on any medical subject. If you wish to make a task to create an API request to the PubMed API then simply say 'PUBMED:' followed by what you would like to search for. Example: 'PUBMED: Find recent developments in HIV research'
 """.strip()
 
-#"Query PubChem API. This is useful for finding chemical information. Search chemicals by name, molecular formula, structure, and other identifiers. Find chemical and physical properties, biological activities, safety and toxicity information, patents, literature citations and more. If you wish to make a task to create an API request to PubChem then simply say 'PubChem:' followed by what you would like to search for. Example: 'PubChem: look up information on genes that are linked to cancer'
 completed_tasks = []
 
 print(Fore.CYAN, '\n*****OBJECTIVE*****\n')
