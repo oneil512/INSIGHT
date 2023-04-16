@@ -10,6 +10,7 @@ import llama_index
 
 from llama_index import (
     GPTSimpleVectorIndex,
+    GPTListIndex,
     LLMPredictor,
     ServiceContext
 )
@@ -29,7 +30,7 @@ TOOLS = ["MYGENE", "PUBMED"]
 # Create llama index
 llm_predictor = LLMPredictor(llm=OpenAI(temperature=0, model_name="text-davinci-003", max_tokens=2000))
 service_context = ServiceContext.from_defaults(llm_predictor=llm_predictor)
-llama_index = GPTSimpleVectorIndex([], service_context=service_context)
+index = GPTSimpleVectorIndex([], service_context=service_context)
 
 
 task_id_counter = 1
@@ -53,7 +54,7 @@ while True:
     cache_params = None
 
     if task_id_counter > 1:
-        executive_summary = query_knowledge_base(llama_index)
+        executive_summary = query_knowledge_base(index)
     else:
         executive_summary = "No tasks completed yet."
 
@@ -82,7 +83,7 @@ while True:
 
         context = ""
         if task_id_counter > 1:
-            context = query_knowledge_base(llama_index, query=f"Provide as much useful context as possible for this task: {task}")
+            context = query_knowledge_base(index, query=f"Provide as much useful context as possible for this task: {task}")
 
         if any(tool in task for tool in TOOLS):
             python = True
@@ -129,7 +130,7 @@ while True:
             task_id = f"doc_id_{task_id_counter}_{i}"
             metadata = {"Task": task, "Result": str(r)}
 
-            insert_doc_llama_index(llama_index, vectorized_data, task_id, str(r))
+            insert_doc_llama_index(index, vectorized_data, task_id, str(r))
 
 
         task_id_counter += 1

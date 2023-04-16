@@ -130,10 +130,10 @@ def insert_doc_llama_index(index, embedding, doc_id, metadata):
     doc = Document(text=metadata, embedding=embedding, doc_id=doc_id)
     index.insert(doc)
 
-def query_knowledge_base(llama_index, query="Give a detailed overview of all the information. Start with a high level summary and then go into details. Do not include any further instruction.", response_mode="tree_summarize"):
+def query_knowledge_base(index, query="Give a detailed but terse overview of all the information. Start with a high level summary and then go into details. Do not include any further instruction. Do not include filler words.", response_mode="tree_summarize"):
 
     # From llama index docs: Empirically, setting response_mode="tree_summarize" also leads to better summarization results.
-    query_response = llama_index.query(query, similarity_top_k=50, response_mode=response_mode)
+    query_response = index.query(query, similarity_top_k=50, response_mode=response_mode)
     return query_response.response
 
 def parser(instruction, content):
