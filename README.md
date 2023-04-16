@@ -58,24 +58,15 @@ At the bottom of the main.py loop there is a break statement to safeguard agains
 
 
 ```py
-if task_id_counter > 15:
+if task_id_counter > MAX_ITERATIONS:
     break
 ```
- 
-The program will cease execution after 15 iterations and your state will be lost. This is fine while we continue developement, but once the program starts to produce useful outputs this should change.
 
+
+Output will be saved in ./out
 
 
 ## TODOs
-
-**Right now it seems to get overly focused on one area. Better executive summaries might fix this.**
-
-* Look into composable indicies with llama index
-
-
-**Explicitly inform boss about worker errors. Ensure boss handles them gracefully.**
-
-* example: code execution issue
 
 
 **Expand APIs**
@@ -90,7 +81,7 @@ The program will cease execution after 15 iterations and your state will be lost
 * currently it's possible to pass an agent a prompt with say 4096 tokens, leaving it space for only one single token for its completion. This should be fixed, but whatever error is passed should be propagated and fixed gracefully
 
 
-**Allow way to save and reload program**
+**Allow way to reload program from saved state**
 
 
 **Implement logging**
