@@ -5,3 +5,5 @@ biopython==1.81
 colorama==0.4.6
 tiktoken==0.3.0
 backoff==2.2.1
+black==23.3.0
+isort==5.12.0
