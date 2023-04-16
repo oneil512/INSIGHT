@@ -1,5 +1,6 @@
 import logging
 import os
+import time
 import xml.etree.ElementTree as ET
 from collections import defaultdict, deque
 
@@ -16,6 +17,7 @@ from utils import (
     get_code_params,
     insert_doc_llama_index,
     query_knowledge_base,
+    save,
 )
 
 logging.getLogger("llama_index").setLevel(logging.WARNING)
@@ -23,6 +25,7 @@ logging.getLogger("llama_index").setLevel(logging.WARNING)
 Entrez.email = os.environ["EMAIL"]
 
 MAX_TOKENS = 4097
+MAX_ITERATIONS = 2
 OBJECTIVE = "Cure breast cancer"
 TOOLS = ["MYGENE", "PUBMED"]
 
@@ -38,6 +41,8 @@ task_id_counter = 1
 task_list = deque()
 completed_tasks = []
 cache = defaultdict(list)
+doc_store = {}
+current_datetime = str(time.strftime("%Y-%m-%d_%H-%M-%S"))
 
 tool_description = """
 1) Query mygene API. This is useful for finding information on specific genes, or genes associated with the search query. If you wish to make a task to create an API request to mygene then simply say 'MYGENE:' followed by what you would like to search for. Example: 'MYGENE: look up information on genes that are linked to cancer'
@@ -50,9 +55,11 @@ print(OBJECTIVE)
 
 
 while True:
+    # States used in each iteration
     result_code = None
     python = False
     cache_params = None
+    params = None
 
     if task_id_counter > 1:
         executive_summary = query_knowledge_base(index)
@@ -124,7 +131,7 @@ while True:
                 params = get_code_params(
                     result_code,
                     preparam_text="mygene.MyGeneInfo()",
-                    postparam_text="mg.query(",
+                    postparam_text="gene_results = mg.query(",
                 )
                 cache["MYGENE"].append(params)
 
@@ -136,14 +143,28 @@ while True:
                 )
                 cache["PUBMED"].append(params)
 
+        doc_store_key = str(task_id_counter) + "_" + task
+        doc_store[doc_store_key] = {}
+        if params:
+            doc_store[doc_store_key]["params"] = params
+        doc_store[doc_store_key]["results"] = []
         for i, r in enumerate(result):
             vectorized_data = get_ada_embedding(str(r))
             task_id = f"doc_id_{task_id_counter}_{i}"
             metadata = {"Task": task, "Result": str(r)}
 
             insert_doc_llama_index(index, vectorized_data, task_id, str(r))
+            doc_store[doc_store_key]["results"].append(
+                {
+                    "task_id_counter": task_id_counter,
+                    "vectorized_data": vectorized_data,
+                    "output": str(r),
+                }
+            )
 
         task_id_counter += 1
 
-    if task_id_counter > 15:
+    if task_id_counter > MAX_ITERATIONS:
         break
+
+save(doc_store, OBJECTIVE, current_datetime)

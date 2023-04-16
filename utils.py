@@ -32,9 +32,40 @@ def num_tokens_from_string(string: str, encoding_name: str = "gpt2") -> int:
     return num_tokens
 
 
+def save(doc_store, OBJECTIVE, current_datetime):
+    path = os.path.join("./out", OBJECTIVE + "_" + current_datetime)
+    make_dir(path)
+
+    for task, doc in doc_store.items():
+        doc_path = os.path.join(path, task)
+        make_dir(doc_path)
+        if "params" in doc:
+            write_file(os.path.join(doc_path, "params.txt"), doc["params"])
+        result_path = os.path.join(doc_path, "results")
+        make_dir(result_path)
+        for i, result in enumerate(doc["results"]):
+            result_path_i = os.path.join(result_path, str(i))
+            make_dir(result_path_i)
+            write_file(os.path.join(result_path_i, "output.txt"), result["output"])
+            write_file(
+                os.path.join(result_path_i, "vector.txt"),
+                str(result["vectorized_data"]),
+            )
+
+
 def get_max_completion_len(prompt):
     tokens = num_tokens_from_string(prompt)
     return MAX_TOKENS - tokens
+
+
+def make_dir(path):
+    if not os.path.exists(path):
+        os.makedirs(path)
+
+
+def write_file(path, contents):
+    with open(path, "w") as f:
+        f.write(contents)
 
 
 def create_initial_world_model():
