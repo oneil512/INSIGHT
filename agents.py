@@ -1,19 +1,24 @@
-import openai
 import os
-
+from ast import literal_eval
 from collections import deque
 from typing import List
-from ast import literal_eval
 
-from utils import generate_tool_prompt, get_gpt_completion, get_gpt_chat_completion
+import openai
 
-openai.api_key = os.environ['OPENAI_API_KEY']
-openai.organization = os.environ['OPENAI_ORG']
+from utils import generate_tool_prompt, get_gpt_chat_completion, get_gpt_completion
+
+openai.api_key = os.environ["OPENAI_API_KEY"]
+openai.organization = os.environ["OPENAI_ORG"]
 tools = ["MYGENE", "PUBMED"]
 
 
-def boss_agent(objective: str, tool_description: str, task_list: List[str], executive_summary="No tasks completed Yet.", completed_tasks=List[str]):
-
+def boss_agent(
+    objective: str,
+    tool_description: str,
+    task_list: List[str],
+    executive_summary="No tasks completed Yet.",
+    completed_tasks=List[str],
+):
     system_prompt = """You are BossGPT, a responsible and organized agent that is responsible for completing a high level and difficult objective. 
 As the boss, your goal is to break the high level objective down into small and managable tasks for your workers. These tasks will be picked up by your worker agents and completed. 
 You will also get an executive summary of what your workers have accomplished so far. Use the summary to make decisions about what tasks to do next, what tasks to get rid of, 
@@ -38,7 +43,7 @@ TASKS
 {Python array of tasks}
 
 """.strip()
-    
+
     user_prompt = f"""
 Here is your objective: {objective}
 Here is the current task list: {task_list}
@@ -68,24 +73,31 @@ TASKS
 Note: To be sure that TASKS is a valid python list, it should always start with '[' and always end with ']'
     
     """.strip()
-    
+
     content = get_gpt_chat_completion(system_prompt, user_prompt, temp=0.0)
 
-    thoughts = content[content.find("THOUGHTS") + len("THOUGHTS") : content.find("TASKS")].strip()
+    thoughts = content[
+        content.find("THOUGHTS") + len("THOUGHTS") : content.find("TASKS")
+    ].strip()
     tasks = content[content.find("TASKS") + len("TASKS") :].strip()
-    tasks = tasks.replace('\n','').replace('/', ' ') # mygene API is breaking from slashes being in the query. Putting this hack in for now. I reached out to the mygene team.
 
-    #parsed_tasks = parser("Parse the following text so that it is a valid python list. Do not alter the elements in any way.", tasks)
+    # parsed_tasks = parser("Parse the following text so that it is a valid python list. Do not alter the elements in any way.", tasks)
     new_task_list = literal_eval(tasks)
     return deque(new_task_list), thoughts
 
 
-def worker_agent(objective:str,task: str, context: str, previous_params: str = None, python: bool = False) -> str:
+def worker_agent(
+    objective: str,
+    task: str,
+    context: str,
+    previous_params: str = None,
+    python: bool = False,
+) -> str:
     if python:
-        prompt=f"""You are an AI who performs one task based on the following objective: {objective}. You will be writing code for your task. Here are the parameters used in the code from previous tasks {previous_params}. Do not use the same parameters and query again; instead use tweak the parameters or query so that you get a slightly different result."""
+        prompt = f"""You are an AI who performs one task based on the following objective: {objective}. You will be writing code for your task. Here are the parameters used in the code from previous tasks {previous_params}. Do not use the same parameters and query again; instead use tweak the parameters or query so that you get a slightly different result."""
         prompt += generate_tool_prompt(task)
     else:
-        prompt=f"""You are an AI who performs one task based on the following objective: {objective}. Here is the result of some similar previous tasks: {context}. Try to not produce the same result. Be creative so that we can get new information."""
+        prompt = f"""You are an AI who performs one task based on the following objective: {objective}. Here is the result of some similar previous tasks: {context}. Try to not produce the same result. Be creative so that we can get new information."""
 
     prompt += f"\nYour task: {task}\nResponse:"
 
@@ -93,13 +105,11 @@ def worker_agent(objective:str,task: str, context: str, previous_params: str = N
 
     return response
 
-def data_cleaning_agent(result: str, objective: str) -> str:
-    # When I include task it over filters the data.
 
+def data_cleaning_agent(result: str, objective: str) -> str:
     prompt = f"""You are an AI who summarizes, cleans, and organizes data. It is important that you do not delete any information that could be useful. Respond with only the updated information.
 Data: {result}
 Cleaned Data:"""
     response = get_gpt_completion(prompt, engine="text-davinci-003", temp=0.1)
 
     return response
-

@@ -1,18 +1,21 @@
 mygene_api = """
 
-API Rules
+API RULES
     - Every code block that calls to the mygene api must start with these two lines:
         import mygene
         mg = mygene.MyGeneInfo()
     - Every code block must end by assigning the output to a variable called 'ret'
+    - Forward slashes in the query must by escaped with a backwards slash:
+        Instead of query_term="abc/123" do query_term="abc\/123"
 
-API Examples
+API PARAMETERS
+    - size: How many genes you will get back
+    - from_: Where in the results to start selecting from
+    - query_term: What is being searched
+
+API EXAMPLES
 
 Here is an example showing how to find genes that are associated with diabetes and then find more information on those genes.
-
-The size parameter controls how many genes you will get back.
-The from_ parameter controls where in the results to start selecting from.
-The query parameter controls what is being searched for
 
 ===
 
@@ -21,11 +24,10 @@ mg = mygene.MyGeneInfo()
 
 query_term="diabetes"
 fields="symbol,name,entrezgene,ensemblgene"
-species="human"
 size=10
 from_=0
 
-gene_results = mg.query(query_term, fields=fields, species=species, size=size, from_=from_)
+gene_results = mg.query(query_term, fields=fields, species="human", size=size, from_=from_)
 hits = gene_results['hits']
 
 gene_info_list = []
