@@ -9,8 +9,8 @@ import llama_index
 from llama_index import Document
 from llama_index.indices.composability import ComposableGraph
 
-from APIs.pubmed_api import pubmed_api
-from APIs.mygene_api import mygene_api
+from api.pubmed_api import pubmed_api
+from api.mygene_api import mygene_api
 from functools import partial
 
 import logging

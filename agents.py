@@ -73,7 +73,6 @@ Note: To be sure that TASKS is a valid python list, it should always start with 
 
     thoughts = content[content.find("THOUGHTS") + len("THOUGHTS") : content.find("TASKS")].strip()
     tasks = content[content.find("TASKS") + len("TASKS") :].strip()
-    tasks = tasks.replace('\n','').replace('/', ' ') # mygene API is breaking from slashes being in the query. Putting this hack in for now. I reached out to the mygene team.
 
     #parsed_tasks = parser("Parse the following text so that it is a valid python list. Do not alter the elements in any way.", tasks)
     new_task_list = literal_eval(tasks)
@@ -94,7 +93,6 @@ def worker_agent(objective:str,task: str, context: str, previous_params: str = N
     return response
 
 def data_cleaning_agent(result: str, objective: str) -> str:
-    # When I include task it over filters the data.
 
     prompt = f"""You are an AI who summarizes, cleans, and organizes data. It is important that you do not delete any information that could be useful. Respond with only the updated information.
 Data: {result}
