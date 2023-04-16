@@ -58,11 +58,11 @@ while True:
         completed_tasks=completed_tasks
         )
     
-    print(Fore.RED + "\n*****EXECUTIVE SUMMARY*****\n")
-    print(Fore.RED + executive_summary)
+    print(Fore.CYAN + "\n*****EXECUTIVE SUMMARY*****\n")
+    print(Fore.CYAN + executive_summary)
     
-    print(Fore.RED + "\n*****BOSS THOUGHTS*****\n")
-    print(Fore.RED + thoughts)
+    print(Fore.CYAN + "\n*****BOSS THOUGHTS*****\n")
+    print(Fore.CYAN + thoughts)
 
     if task_list:
 
