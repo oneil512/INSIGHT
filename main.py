@@ -15,6 +15,7 @@ from utils import (
     execute_python,
     get_ada_embedding,
     get_code_params,
+    get_key_results,
     insert_doc_llama_index,
     query_knowledge_base,
     save,
@@ -25,7 +26,7 @@ logging.getLogger("llama_index").setLevel(logging.WARNING)
 Entrez.email = os.environ["EMAIL"]
 
 MAX_TOKENS = 4097
-MAX_ITERATIONS = 2
+MAX_ITERATIONS = 1
 OBJECTIVE = "Cure breast cancer"
 TOOLS = ["MYGENE", "PUBMED"]
 
@@ -41,7 +42,7 @@ task_id_counter = 1
 task_list = deque()
 completed_tasks = []
 cache = defaultdict(list)
-doc_store = {}
+doc_store = {"tasks": {}}
 current_datetime = str(time.strftime("%Y-%m-%d_%H-%M-%S"))
 
 tool_description = """
@@ -144,21 +145,21 @@ while True:
                 cache["PUBMED"].append(params)
 
         doc_store_key = str(task_id_counter) + "_" + task
-        doc_store[doc_store_key] = {}
-        if params:
-            doc_store[doc_store_key]["params"] = params
-        doc_store[doc_store_key]["results"] = []
+        doc_store["tasks"][doc_store_key] = {}
+        doc_store["tasks"][doc_store_key]["results"] = []
         for i, r in enumerate(result):
             vectorized_data = get_ada_embedding(str(r))
             task_id = f"doc_id_{task_id_counter}_{i}"
-            metadata = {"Task": task, "Result": str(r)}
-
             insert_doc_llama_index(index, vectorized_data, task_id, str(r))
-            doc_store[doc_store_key]["results"].append(
+
+            if result_code:
+                doc_store["tasks"][doc_store_key]["result_code"] = result_code
+                
+            doc_store["tasks"][doc_store_key]["results"].append(
                 {
                     "task_id_counter": task_id_counter,
                     "vectorized_data": vectorized_data,
-                    "output": str(r),
+                    "output": str(r)
                 }
             )
 
@@ -167,4 +168,7 @@ while True:
     if task_id_counter > MAX_ITERATIONS:
         break
 
+
+key_results = get_key_results(index)
+doc_store['key_results'] = key_results
 save(doc_store, OBJECTIVE, current_datetime)

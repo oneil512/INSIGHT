@@ -27,57 +27,45 @@ llama_index.llm_predictor.base.openai.organization = os.environ["OPENAI_ORG"]
 
 def num_tokens_from_string(string: str, encoding_name: str = "gpt2") -> int:
     """Returns the number of tokens in a text string."""
+
     encoding = tiktoken.get_encoding(encoding_name)
     num_tokens = len(encoding.encode(string))
     return num_tokens
 
 
-def save(doc_store, OBJECTIVE, current_datetime):
-    path = os.path.join("./out", OBJECTIVE + "_" + current_datetime)
-    make_dir(path)
+def get_key_results(index):
+    """Run final queries over retrieved documents and store in doc_store."""
 
-    for task, doc in doc_store.items():
-        doc_path = os.path.join(path, task)
-        make_dir(doc_path)
-        if "params" in doc:
-            write_file(os.path.join(doc_path, "params.txt"), doc["params"])
-        result_path = os.path.join(doc_path, "results")
-        make_dir(result_path)
-        for i, result in enumerate(doc["results"]):
-            result_path_i = os.path.join(result_path, str(i))
-            make_dir(result_path_i)
-            write_file(os.path.join(result_path_i, "output.txt"), result["output"])
-            write_file(
-                os.path.join(result_path_i, "vector.txt"),
-                str(result["vectorized_data"]),
-            )
+    key_results = []
+
+    queries = [
+        "Give a brief high level summary of all the data.",
+        "Briefly list all the main points that the data covers.",
+        "Give all of the key insights about the data.",
+        "Generate several creative hypotheses given the data.",
+        "What are some high level research directions to explore further given the data?",
+        "Describe the key findings in great detail. Do not include filler words."
+    ]
+
+    for query in queries:
+        res = None
+        try:
+            res = query_knowledge_base(index=index, query=query)
+        except Exception as e:
+            print(f'Exception getting key result {query}, error {e}')
+
+        if res:
+            key_results.append((query, res))
+
+    return key_results
+        
+        
+
 
 
 def get_max_completion_len(prompt):
     tokens = num_tokens_from_string(prompt)
     return MAX_TOKENS - tokens
-
-
-def make_dir(path):
-    if not os.path.exists(path):
-        os.makedirs(path)
-
-
-def write_file(path, contents):
-    with open(path, "w") as f:
-        f.write(contents)
-
-
-def create_initial_world_model():
-    # Create an initial world model with basic information
-    # You can customize this function based on the specific problem domain
-    world_model = {
-        "Geography": {
-            "United States": {"number of states": 50, "largest state": "Alaska"}
-        }
-    }
-    return world_model
-
 
 def execute_python(code: str):
     # ret is defined in the code string
@@ -176,10 +164,11 @@ def query_knowledge_base(
     index,
     query="Give a detailed but terse overview of all the information. Start with a high level summary and then go into details. Do not include any further instruction. Do not include filler words.",
     response_mode="tree_summarize",
+    top_k=50,
 ):
     # From llama index docs: Empirically, setting response_mode="tree_summarize" also leads to better summarization results.
     query_response = index.query(
-        query, similarity_top_k=50, response_mode=response_mode
+        query, similarity_top_k=top_k, response_mode=response_mode
     )
     return query_response.response
 
@@ -238,7 +227,49 @@ def get_gpt_chat_completion(
     return response.choices[0]["message"]["content"].strip()
 
 
-# Deprecated. Maybe will use in the future. storing here for now
+### FILE UTILS ###
+
+def make_dir(path):
+    if not os.path.exists(path):
+        os.makedirs(path)
+
+
+def write_file(path, contents, mode="w"):
+    with open(path, mode) as f:
+        f.write(contents)
+
+
+def save(doc_store, OBJECTIVE, current_datetime):
+    path = os.path.join("./out", OBJECTIVE + "_" + current_datetime)
+    make_dir(path)
+    
+    if "key_results" in doc_store:
+        for res in doc_store["key_results"]:
+            content = f"###### Query: {res[0]} ######\n\n{res[1]}\n\n\n\n"
+            write_file(os.path.join(path, "key_findings.txt"), content, mode="a+")
+
+    for task, doc in doc_store['tasks'].items():
+        doc_path = os.path.join(path, task)
+        make_dir(doc_path)
+        result_path = os.path.join(doc_path, "results")
+        make_dir(result_path)
+
+        if "result_code" in doc:
+            write_file(os.path.join(result_path, "api_call.txt"), doc["result_code"])
+
+        for i, result in enumerate(doc["results"]):
+            result_path_i = os.path.join(result_path, str(i))
+            make_dir(result_path_i)
+            write_file(os.path.join(result_path_i, "output.txt"), result["output"])
+            write_file(
+                os.path.join(result_path_i, "vector.txt"),
+                str(result["vectorized_data"]),
+            )
+
+
+
+### DEPRECATED FUNCTIONS ###
+
 def facilitator_agent(task: str, python: bool, result: str) -> str:
     if python:
         result = execute_python(result)
@@ -259,3 +290,14 @@ Updated world model:"""
         presence_penalty=0,
     )
     return literal_eval(response.choices[0].text.strip().replace("\n", ""))
+
+
+def create_initial_world_model():
+    # Create an initial world model with basic information
+    # You can customize this function based on the specific problem domain
+    world_model = {
+        "Geography": {
+            "United States": {"number of states": 50, "largest state": "Alaska"}
+        }
+    }
+    return world_model
