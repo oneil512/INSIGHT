@@ -2,8 +2,6 @@
 
 Insight is an autonomous AI that can do medical research. It has a boss agent that takes an objective and an executive summary of the tasks completed already and their results and creates a task list. A worker agent picks up a task from the list and completes it, saving the results to llama index. The boss gets informed of the results and changes/reprioritizes the task list. The workers can call into the pubmed and mygene APIs (more to come). The workers also get context from llama index to help complete their tasks.
 
-Very much a work in progress, but it is showing some early results!
-
 Please reach out to me or contribute if this interests you :)
 
 
@@ -46,6 +44,45 @@ graph TB;
 3. run `pip install -r requirements.txt`
 4. run `python main.py`
 
+## Output
+
+The program saves the result from every task and adds it to the output directory `out`
+
+It also creates a key findings markdown file over all results that distills the data via the following commands:
+
+* Give a brief high level summary of all the data.
+* Briefly list all the main points that the data covers.
+* Give all of the key insights about the data.
+* Generate several creative hypotheses given the data.
+* What are some high level research directions to explore further given the data?
+* Describe the key findings in great detail. Do not include filler words.
+
+Arbitrary commands can be added.
+
+Here is an example output structure
+
+```
+.
+└── out  /
+    ├── Objective  /
+    │   ├── Task 1/
+    │   │   ├── Result 1/
+    │   │   │   ├── Raw Result
+    │   │   │   └── Vector Embedding of Result
+    │   │   ├── Result 2/
+    │   │   │   ├── Raw Result
+    │   │   │   └── Vector Embedding of Result
+    │   │   ├── .
+    │   │   ├── .
+    │   │   ├── .
+    │   │   └── API Call (If task was an API call)
+    │   ├── Task 2
+    │   ├── .
+    │   ├── .
+    │   ├── .
+    │   └── Task N
+    └── key_findings.md
+```
 
 
 BE MINDFUL OF EXPENSES!!

@@ -37,7 +37,7 @@ After you have finished generating your task array, cease output.
 Your responses should in this format:
 
 THOUGHTS
-{Reason about what tasks to add, change, delete, or reprioritize given your objective and world model}
+{Reason about what tasks to add, change, delete, or reprioritize given your objective and all the information you have}
 
 TASKS
 {Python array of tasks}
@@ -58,7 +58,7 @@ If a task has already been completed, do not write that same task again in the t
 Please update the task list and follow this format.
 
 THOUGHTS
-Reason about what tasks to add, change, delete, or reprioritize given your objective and world model
+Reason about what tasks to add, change, delete, or reprioritize given your objective and the information you have
 
 TASKS
 Python array of tasks
