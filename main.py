@@ -169,6 +169,5 @@ while True:
         break
 
 
-key_results = get_key_results(index)
-doc_store['key_results'] = key_results
+doc_store['key_results'] =  get_key_results(index)
 save(doc_store, OBJECTIVE, current_datetime)
