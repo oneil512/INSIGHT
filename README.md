@@ -98,29 +98,3 @@ At the bottom of the main.py loop there is a break statement to safeguard agains
 if task_id_counter > MAX_ITERATIONS:
     break
 ```
-
-
-Output will be saved in ./out
-
-
-## TODOs
-
-
-**Expand APIs**
-
-* more useful examples
-* different APIs
-* NOTE: prompt space is out most scarce commodity. Be as terse as possible and be careful not to add redundancies
-
-
-**Implement token limit constraints**
-
-* currently it's possible to pass an agent a prompt with say 4096 tokens, leaving it space for only one single token for its completion. This should be fixed, but whatever error is passed should be propagated and fixed gracefully
-
-
-**Allow way to reload program from saved state**
-
-
-**Implement logging**
-
-* Ideally the output of every run should be saved to its own log file
