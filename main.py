@@ -45,11 +45,14 @@ cache = defaultdict(list)
 doc_store = {"tasks": {}}
 current_datetime = str(time.strftime("%Y-%m-%d_%H-%M-%S"))
 
-tool_description = """
-1) Query mygene API. This is useful for finding information on specific genes, or genes associated with the search query. If you wish to make a task to create an API request to mygene then simply say 'MYGENE:' followed by what you would like to search for. Example: 'MYGENE: look up information on genes that are linked to cancer'
-2) Query PubMed API. This is useful for searching biomedical literature and studies on any medical subject. If you wish to make a task to create an API request to the PubMed API then simply say 'PUBMED:' followed by what you would like to search for. Example: 'PUBMED: Find recent developments in HIV research'
-""".strip()
+tool_description_mapping = {"PUBMED": """2) Query PubMed API. This is useful for searching biomedical literature and studies on any medical subject. If you wish to make a task to create an API request to the PubMed API then simply say 'PUBMED:' followed by what you would like to search for. Example: 'PUBMED: Find recent developments in HIV research'"""
+, "MYGENE": """1) Query mygene API. This is useful for finding information on specific genes, or genes associated with the search query. If you wish to make a task to create an API request to mygene then simply say 'MYGENE:' followed by what you would like to search for. Example: 'MYGENE: look up information on genes that are linked to cancer'"""
+}
 
+tool_description = ""
+
+for tool in TOOLS:
+    tool_description += f"{tool_description_mapping[tool]}\n"
 
 print(Fore.CYAN, "\n*****OBJECTIVE*****\n")
 print(OBJECTIVE)
@@ -120,8 +123,36 @@ while True:
         if "PUBMED" in task:
             root = ET.fromstring(result)
             result = []
-            for AbstractText in root.iter("AbstractText"):
-                result.append(AbstractText.text)
+
+            for article in root:
+                res_ = ""
+                for title in article.iter('Title'):
+                    res_ += f"{title.text}\n"
+                for abstract in article.iter('AbstractText'):
+                    res_ += f"{abstract.text}\n"
+                for author in article.iter('Author'):
+                    res_ += f"{author.find('LastName').text}, {author.find('ForeName').text}\n"
+                for journal in article.iter('Journal'):
+                    res_ += f"{journal.find('Title').text}\n"
+                for volume in article.iter('Volume'):
+                    res_ += f"{volume.text}\n"
+                for issue in article.iter('Issue'):
+                    res_ += f"{issue.text}\n"
+                for pubdate in article.iter('PubDate'):
+                    try:
+                        year = pubdate.find('Year').text
+                        res_ += f"{year}"
+                        month = pubdate.find('Month').text
+                        res_ += f"-{month}"
+                        day = pubdate.find('Day').text
+                        res_ += f"{day}\n"
+                    except:
+                        pass
+                for doi in article.iter('ELocationID'):
+                    if doi.get('EIdType') == 'doi':
+                        res_ += f"{doi.text}\n"
+
+                result.append(res_)
 
         if type(result) is not list:
             result = [result]
@@ -147,13 +178,14 @@ while True:
         doc_store_key = str(task_id_counter) + "_" + task
         doc_store["tasks"][doc_store_key] = {}
         doc_store["tasks"][doc_store_key]["results"] = []
+
+        if result_code:
+            doc_store["tasks"][doc_store_key]["result_code"] = result_code
+
         for i, r in enumerate(result):
             vectorized_data = get_ada_embedding(str(r))
             task_id = f"doc_id_{task_id_counter}_{i}"
             insert_doc_llama_index(index, vectorized_data, task_id, str(r))
-
-            if result_code:
-                doc_store["tasks"][doc_store_key]["result_code"] = result_code
                 
             doc_store["tasks"][doc_store_key]["results"].append(
                 {
@@ -169,5 +201,5 @@ while True:
         break
 
 
-doc_store['key_results'] =  get_key_results(index)
+doc_store['key_results'] = get_key_results(index)
 save(doc_store, OBJECTIVE, current_datetime)

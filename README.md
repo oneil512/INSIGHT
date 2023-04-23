@@ -57,7 +57,7 @@ It also creates a key findings markdown file over all results that distills the 
 * What are some high level research directions to explore further given the data?
 * Describe the key findings in great detail. Do not include filler words.
 
-Arbitrary commands can be added.
+Arbitrary commands can be added. Open this in a markdown editor for the best experience.
 
 Here is an example output structure
 
