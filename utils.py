@@ -51,7 +51,7 @@ def get_key_results(index):
     for query in queries:
         res = None
         try:
-            res = query_knowledge_base(index=index, query=query, top_k=5)
+            res = query_knowledge_base(index=index, query=query)
         except Exception as e:
             print(f'Exception getting key result {query}, error {e}')
 
