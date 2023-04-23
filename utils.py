@@ -8,6 +8,7 @@ import openai
 import tiktoken
 from llama_index import Document
 from llama_index.indices.composability import ComposableGraph
+import markdown
 
 from api.mygene_api import mygene_api
 from api.pubmed_api import pubmed_api
@@ -39,33 +40,33 @@ def get_key_results(index):
     key_results = []
 
     queries = [
-        "Give a brief high level summary of all the data.",
-        "Briefly list all the main points that the data covers.",
-        "Give all of the key insights about the data.",
+        "Give a brief high level summary of all the data. Cite your sources with the citation information.",
+        "Briefly list all the main points that the data covers. Cite your sources with the citation information.",
+        "Give all of the key insights about the data. Cite your sources with the citation information.",
         "Generate several creative hypotheses given the data.",
         "What are some high level research directions to explore further given the data?",
-        "Describe the key findings in great detail. Do not include filler words."
+        "Describe the key findings in great detail. Do not include filler words. Cite your sources with the citation information."
     ]
 
     for query in queries:
         res = None
         try:
-            res = query_knowledge_base(index=index, query=query)
+            res = query_knowledge_base(index=index, query=query, top_k=5)
         except Exception as e:
             print(f'Exception getting key result {query}, error {e}')
 
         if res:
-            key_results.append((query, res))
+            query = f'# {query}\n\n'
+            html = markdown.markdown(res)
+            key_results.append((query, f'{html}\n\n\n\n'))
 
     return key_results
         
         
-
-
-
 def get_max_completion_len(prompt):
     tokens = num_tokens_from_string(prompt)
     return MAX_TOKENS - tokens
+
 
 def execute_python(code: str):
     # ret is defined in the code string
@@ -162,7 +163,7 @@ def insert_doc_llama_index(index, embedding, doc_id, metadata):
 
 def query_knowledge_base(
     index,
-    query="Give a detailed but terse overview of all the information. Start with a high level summary and then go into details. Do not include any further instruction. Do not include filler words.",
+    query="Give a detailed but terse overview of all the information. Start with a high level summary and then go into details. Do not include any further instruction. Do not include filler words. Do not include citation information.",
     response_mode="tree_summarize",
     top_k=50,
 ):
@@ -245,8 +246,8 @@ def save(doc_store, OBJECTIVE, current_datetime):
     
     if "key_results" in doc_store:
         for res in doc_store["key_results"]:
-            content = f"###### Query: {res[0]} ######\n\n{res[1]}\n\n\n\n"
-            write_file(os.path.join(path, "key_findings.txt"), content, mode="a+")
+            content = f"{res[0]}{res[1]}"
+            write_file(os.path.join(path, "key_findings.md"), content, mode="a+")
 
     for task, doc in doc_store['tasks'].items():
         doc_path = os.path.join(path, task)
@@ -265,7 +266,6 @@ def save(doc_store, OBJECTIVE, current_datetime):
                 os.path.join(result_path_i, "vector.txt"),
                 str(result["vectorized_data"]),
             )
-
 
 
 ### DEPRECATED FUNCTIONS ###
