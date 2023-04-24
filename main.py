@@ -1,13 +1,13 @@
 import logging
+import math
 import os
 import time
-import xml.etree.ElementTree as ET
 from collections import defaultdict, deque
 
 import llama_index
 from Bio import Entrez
 from colorama import Fore
-from langchain import OpenAI
+from langchain.chat_models import ChatOpenAI
 from llama_index import GPTListIndex, GPTSimpleVectorIndex, LLMPredictor, ServiceContext
 
 from agents import boss_agent, worker_agent
@@ -20,20 +20,25 @@ from utils import (
     insert_doc_llama_index,
     query_knowledge_base,
     save,
+    process_pubmed_result,
+    process_mygene_result
 )
+
+start_time = time.time()
 
 logging.getLogger("llama_index").setLevel(logging.WARNING)
 
 Entrez.email = EMAIL or os.environ["EMAIL"]
 
-MAX_TOKENS = 4097
-MAX_ITERATIONS = 1
 OBJECTIVE = "Cure breast cancer"
+MAX_TOKENS = 4097
+RESULT_CUTOFF = 20000 # Only first 20k characters of a result are considered. This is for the sake of performance. Adjust as you see fit.
+MAX_ITERATIONS = 1
 TOOLS = ["MYGENE", "PUBMED"]
 
 # Create llama index
 llm_predictor = LLMPredictor(
-    llm=OpenAI(temperature=0, openai_api_key=(OPENAI_API_KEY or os.environ["OPENAI_API_KEY"]), model_name="text-davinci-003", max_tokens=2000)
+    llm=ChatOpenAI(temperature=0, openai_api_key=(OPENAI_API_KEY or os.environ["OPENAI_API_KEY"]), model_name="gpt-3.5-turbo", max_tokens=2000)
 )
 service_context = ServiceContext.from_defaults(llm_predictor=llm_predictor)
 index = GPTSimpleVectorIndex([], service_context=service_context)
@@ -122,43 +127,12 @@ while True:
             result_code = result
             result = execute_python(result)
 
+        if "MYGENE" in task:
+            result = process_mygene_result(result)
+
         if "PUBMED" in task:
-            root = ET.fromstring(result)
-            result = []
+            result = process_pubmed_result(result)
 
-            for article in root:
-                res_ = ""
-                for title in article.iter("Title"):
-                    res_ += f"{title.text}\n"
-                for abstract in article.iter("AbstractText"):
-                    res_ += f"{abstract.text}\n"
-                for author in article.iter("Author"):
-                    try:
-                        res_ += f"{author.find('LastName').text}"
-                        res_ += f", {author.find('ForeName').text}\n"
-                    except:
-                        pass
-                for journal in article.iter("Journal"):
-                    res_ += f"{journal.find('Title').text}\n"
-                for volume in article.iter("Volume"):
-                    res_ += f"{volume.text}\n"
-                for issue in article.iter("Issue"):
-                    res_ += f"{issue.text}\n"
-                for pubdate in article.iter("PubDate"):
-                    try:
-                        year = pubdate.find("Year").text
-                        res_ += f"{year}"
-                        month = pubdate.find("Month").text
-                        res_ += f"-{month}"
-                        day = pubdate.find("Day").text
-                        res_ += f"-{day}\n"
-                    except:
-                        pass
-                for doi in article.iter("ELocationID"):
-                    if doi.get("EIdType") == "doi":
-                        res_ += f"{doi.text}\n"
-
-                result.append(res_)
 
         if type(result) is not list:
             result = [result]
@@ -189,15 +163,16 @@ while True:
             doc_store["tasks"][doc_store_key]["result_code"] = result_code
 
         for i, r in enumerate(result):
-            vectorized_data = get_ada_embedding(str(r))
+            result = str(result)[:RESULT_CUTOFF] # Occasionally an enormous result will slow the program to a halt. Not ideal to lose results but putting in place for now.
+            vectorized_data = get_ada_embedding(result)
             task_id = f"doc_id_{task_id_counter}_{i}"
-            insert_doc_llama_index(index, vectorized_data, task_id, str(r))
+            insert_doc_llama_index(index, vectorized_data, task_id, result)
 
             doc_store["tasks"][doc_store_key]["results"].append(
                 {
                     "task_id_counter": task_id_counter,
                     "vectorized_data": vectorized_data,
-                    "output": str(r),
+                    "output": result,
                 }
             )
 
@@ -207,5 +182,9 @@ while True:
         break
 
 
-doc_store["key_results"] = get_key_results(index, OBJECTIVE)
+doc_store["key_results"] = get_key_results(index, OBJECTIVE, top_k=20)
 save(doc_store, OBJECTIVE, current_datetime)
+
+end_time = time.time()
+total_time = end_time - start_time
+print(Fore.RED + f"Total run time: {total_time:.2f} seconds")
