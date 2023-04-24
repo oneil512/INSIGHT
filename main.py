@@ -30,7 +30,7 @@ logging.getLogger("llama_index").setLevel(logging.WARNING)
 
 Entrez.email = EMAIL or os.environ["EMAIL"]
 
-OBJECTIVE = "research BRCA1"
+OBJECTIVE = "Cure breast cancer"
 MAX_TOKENS = 4097
 RESULT_CUTOFF = 20000 # Only first 20k characters of a result are considered. This is for the sake of performance. Adjust as you see fit.
 MAX_ITERATIONS = 1
@@ -38,7 +38,7 @@ TOOLS = ["MYGENE", "PUBMED"]
 
 # Create llama index
 llm_predictor = LLMPredictor(
-    llm=ChatOpenAI(temperature=0, openai_api_key=(OPENAI_API_KEY or os.environ["OPENAI_API_KEY"]), model_name="gpt-3.5-turbo", max_tokens=-1)
+    llm=ChatOpenAI(temperature=0, openai_api_key=(OPENAI_API_KEY or os.environ["OPENAI_API_KEY"]), model_name="gpt-3.5-turbo", max_tokens=2000)
 )
 service_context = ServiceContext.from_defaults(llm_predictor=llm_predictor)
 index = GPTSimpleVectorIndex([], service_context=service_context)
