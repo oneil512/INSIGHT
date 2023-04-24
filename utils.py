@@ -4,11 +4,11 @@ from functools import partial
 
 import backoff
 import llama_index
+import markdown
 import openai
 import tiktoken
 from llama_index import Document
 from llama_index.indices.composability import ComposableGraph
-import markdown
 
 from api.mygene_api import mygene_api
 from api.pubmed_api import pubmed_api
@@ -22,6 +22,7 @@ MAX_TOKENS = 4097
 api_info_mapping = {"mygene": mygene_api, "PubMed": pubmed_api}
 
 openai.api_key = OPENAI_API_KEY or os.environ["OPENAI_API_KEY"]
+
 
 def num_tokens_from_string(string: str, encoding_name: str = "gpt2") -> int:
     """Returns the number of tokens in a text string."""
@@ -42,7 +43,7 @@ def get_key_results(index):
         "Give all of the key insights about the data. Cite your sources with the citation information.",
         "Generate several creative hypotheses given the data.",
         "What are some high level research directions to explore further given the data?",
-        "Describe the key findings in great detail. Do not include filler words. Cite your sources with the citation information."
+        "Describe the key findings in great detail. Do not include filler words. Cite your sources with the citation information.",
     ]
 
     for query in queries:
@@ -50,16 +51,16 @@ def get_key_results(index):
         try:
             res = query_knowledge_base(index=index, query=query)
         except Exception as e:
-            print(f'Exception getting key result {query}, error {e}')
+            print(f"Exception getting key result {query}, error {e}")
 
         if res:
-            query = f'# {query}\n\n'
+            query = f"# {query}\n\n"
             html = markdown.markdown(res)
-            key_results.append((query, f'{html}\n\n\n\n'))
+            key_results.append((query, f"{html}\n\n\n\n"))
 
     return key_results
-        
-        
+
+
 def get_max_completion_len(prompt):
     tokens = num_tokens_from_string(prompt)
     return MAX_TOKENS - tokens
@@ -227,6 +228,7 @@ def get_gpt_chat_completion(
 
 ### FILE UTILS ###
 
+
 def make_dir(path):
     if not os.path.exists(path):
         os.makedirs(path)
@@ -240,13 +242,13 @@ def write_file(path, contents, mode="w"):
 def save(doc_store, OBJECTIVE, current_datetime):
     path = os.path.join("./out", OBJECTIVE + "_" + current_datetime)
     make_dir(path)
-    
+
     if "key_results" in doc_store:
         for res in doc_store["key_results"]:
             content = f"{res[0]}{res[1]}"
             write_file(os.path.join(path, "key_findings.md"), content, mode="a+")
 
-    for task, doc in doc_store['tasks'].items():
+    for task, doc in doc_store["tasks"].items():
         doc_path = os.path.join(path, task)
         make_dir(doc_path)
         result_path = os.path.join(doc_path, "results")
@@ -266,6 +268,7 @@ def save(doc_store, OBJECTIVE, current_datetime):
 
 
 ### DEPRECATED FUNCTIONS ###
+
 
 def facilitator_agent(task: str, python: bool, result: str) -> str:
     if python:
