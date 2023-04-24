@@ -4,12 +4,14 @@ from functools import partial
 
 import backoff
 import llama_index
+import json
 import markdown
 import openai
 import tiktoken
 from colorama import Fore
 from llama_index import Document
 from llama_index.indices.composability import ComposableGraph
+import xml.etree.ElementTree as ET
 
 from api.mygene_api import mygene_api
 from api.pubmed_api import pubmed_api
@@ -33,7 +35,7 @@ def num_tokens_from_string(string: str, encoding_name: str = "gpt2") -> int:
     return num_tokens
 
 
-def get_key_results(index, objective):
+def get_key_results(index, objective, top_k=50):
     """Run final queries over retrieved documents and store in doc_store."""
 
     print(Fore.CYAN + "\n*****COMPILING KEY RESULTS*****\n")
@@ -54,7 +56,7 @@ def get_key_results(index, objective):
         print(Fore.CYAN + f"\nCOMPILING RESULT {query}\n")
         res = None
         try:
-            res = query_knowledge_base(index=index, query=query)
+            res = query_knowledge_base(index=index, query=query, top_k=top_k)
         except Exception as e:
             print(f"Exception getting key result {query}, error {e}")
 
@@ -85,6 +87,104 @@ def execute_python(code: str):
 
     return loc["ret"]
 
+def process_mygene_result(result):
+    processed_result = []
+
+    for res in result:
+
+        json_data = res
+        useful_info = {}
+
+        _id = json_data.get('_id')
+        _version = json_data.get('_version')
+        name = json_data.get('name')
+        refseq = json_data.get('refseq', {}).get('genomic', [])
+        symbol = json_data.get('symbol')
+        taxid = json_data.get('taxid')
+        type_of_gene = json_data.get('type_of_gene')
+
+        useful_info['info'] = {
+            '_id': _id,
+            '_version': _version,
+            'name': name,
+            'refseq': refseq,
+            'symbol': symbol,
+            'taxid': taxid,
+            'type_of_gene': type_of_gene,
+            'generifs': []
+        }
+        generifs = json_data.get('generif', [])
+        for generif in generifs:
+            pubmed = generif.get('pubmed')
+            text = generif.get('text')
+            if pubmed and text and 'HuGE Navigator' not in text: # The GeneRifs from HuGE Navigator are sometimes numerous and not useful from what I have seen.
+                if text not in [g['text'] for g in useful_info['info']['generifs']]:
+                    useful_info['info']['generifs'].append({'pubmed': pubmed, 'text': text})
+
+
+        item = useful_info['info']
+        output = f"ID: {item['_id']}\n"
+        output += f"Version: {item['_version']}\n"
+        if item['name']:
+            output += f"Name: {item['name']}\n"
+        if item['refseq']:
+            output += f"RefSeq: {', '.join(item['refseq'])}\n"
+        if item['symbol']:
+            output += f"Symbol: {item['symbol']}\n"
+        if item['taxid']:
+            output += f"Tax ID: {item['taxid']}\n"
+        if item['type_of_gene']:
+            output += f"Type of gene: {item['type_of_gene']}\n"
+        for generif in item['generifs']:
+            output += f"PubMed ID: {generif['pubmed']}\n"
+            output += f"Text: {generif['text']}\n"
+        output += '\n'
+
+        processed_result.append(output)
+
+    return processed_result
+    
+
+
+def process_pubmed_result(result):
+    root = ET.fromstring(result)
+    processed_result = []
+
+    for article in root:
+        res_ = ""
+        for title in article.iter("Title"):
+            res_ += f"{title.text}\n"
+        for abstract in article.iter("AbstractText"):
+            res_ += f"{abstract.text}\n"
+        for author in article.iter("Author"):
+            try:
+                res_ += f"{author.find('LastName').text}"
+                res_ += f", {author.find('ForeName').text}\n"
+            except:
+                pass
+        for journal in article.iter("Journal"):
+            res_ += f"{journal.find('Title').text}\n"
+        for volume in article.iter("Volume"):
+            res_ += f"{volume.text}\n"
+        for issue in article.iter("Issue"):
+            res_ += f"{issue.text}\n"
+        for pubdate in article.iter("PubDate"):
+            try:
+                year = pubdate.find("Year").text
+                res_ += f"{year}"
+                month = pubdate.find("Month").text
+                res_ += f"-{month}"
+                day = pubdate.find("Day").text
+                res_ += f"-{day}\n"
+            except:
+                pass
+        for doi in article.iter("ELocationID"):
+            if doi.get("EIdType") == "doi":
+                res_ += f"{doi.text}\n"
+
+        processed_result.append(res_)
+
+    return processed_result
 
 def prune_gene_results(res):
     pass
@@ -154,7 +254,7 @@ def get_ada_embedding(text):
     text = text.replace("\n", " ")
 
     if len(text) > ada_embedding_max_size:
-        # There must be a better way to do this. at least parse some of the json out if it is json
+        # There must be a better way to do this.
         text = text[:ada_embedding_max_size]
     return openai.Embedding.create(input=[text], model="text-embedding-ada-002")[
         "data"
