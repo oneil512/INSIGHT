@@ -33,7 +33,7 @@ def num_tokens_from_string(string: str, encoding_name: str = "gpt2") -> int:
     return num_tokens
 
 
-def get_key_results(index):
+def get_key_results(index, objective):
     """Run final queries over retrieved documents and store in doc_store."""
 
     print(Fore.CYAN + "\n*****COMPILING KEY RESULTS*****\n")
@@ -47,6 +47,7 @@ def get_key_results(index):
         "Generate several creative hypotheses given the data.",
         "What are some high level research directions to explore further given the data?",
         "Describe the key findings in great detail. Do not include filler words. Cite your sources with the citation information.",
+        f"Do your best to answer the objective: {objective} given the information. Cite your sources with the citation information."
     ]
 
     for query in queries:
