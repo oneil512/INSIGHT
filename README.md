@@ -36,10 +36,9 @@ graph TB;
 
 1. Sign up for [OpenAI](https://platform.openai.com/signup)
 
-2. Expose the following environment vars
+2. Expose the following environment variables
     - EMAIL
     - OPENAI_API_KEY
-    - OPENAI_ORG
 
 3. run `pip install -r requirements.txt`
 4. run `python main.py`

@@ -12,6 +12,7 @@ import markdown
 
 from api.mygene_api import mygene_api
 from api.pubmed_api import pubmed_api
+from config import OPENAI_API_KEY
 
 logging.getLogger("llama_index").setLevel(logging.WARNING)
 
@@ -20,11 +21,7 @@ MAX_TOKENS = 4097
 
 api_info_mapping = {"mygene": mygene_api, "PubMed": pubmed_api}
 
-
-openai.api_key = os.environ["OPENAI_API_KEY"]
-openai.organization = os.environ["OPENAI_ORG"]
-llama_index.llm_predictor.base.openai.organization = os.environ["OPENAI_ORG"]
-
+openai.api_key = OPENAI_API_KEY or os.environ["OPENAI_API_KEY"]
 
 def num_tokens_from_string(string: str, encoding_name: str = "gpt2") -> int:
     """Returns the number of tokens in a text string."""

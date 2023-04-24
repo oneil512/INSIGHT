@@ -4,6 +4,8 @@ import time
 import xml.etree.ElementTree as ET
 from collections import defaultdict, deque
 
+from config import EMAIL
+
 import llama_index
 from Bio import Entrez
 from colorama import Fore
@@ -23,7 +25,7 @@ from utils import (
 
 logging.getLogger("llama_index").setLevel(logging.WARNING)
 
-Entrez.email = os.environ["EMAIL"]
+Entrez.email = EMAIL or os.environ["EMAIL"]
 
 MAX_TOKENS = 4097
 MAX_ITERATIONS = 1

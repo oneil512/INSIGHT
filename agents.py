@@ -2,13 +2,13 @@ import os
 from ast import literal_eval
 from collections import deque
 from typing import List
+from config import OPENAI_API_KEY
 
 import openai
 
 from utils import generate_tool_prompt, get_gpt_chat_completion, get_gpt_completion
 
-openai.api_key = os.environ["OPENAI_API_KEY"]
-openai.organization = os.environ["OPENAI_ORG"]
+openai.api_key = OPENAI_API_KEY or os.environ["OPENAI_API_KEY"]
 tools = ["MYGENE", "PUBMED"]
 
 
