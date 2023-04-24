@@ -7,6 +7,7 @@ import llama_index
 import markdown
 import openai
 import tiktoken
+from colorama import Fore
 from llama_index import Document
 from llama_index.indices.composability import ComposableGraph
 
@@ -35,6 +36,8 @@ def num_tokens_from_string(string: str, encoding_name: str = "gpt2") -> int:
 def get_key_results(index):
     """Run final queries over retrieved documents and store in doc_store."""
 
+    print(Fore.CYAN + "\n*****COMPILING KEY RESULTS*****\n")
+
     key_results = []
 
     queries = [
@@ -47,6 +50,7 @@ def get_key_results(index):
     ]
 
     for query in queries:
+        print(Fore.CYAN + f"\nCOMPILING RESULT {query}\n")
         res = None
         try:
             res = query_knowledge_base(index=index, query=query)
@@ -57,6 +61,8 @@ def get_key_results(index):
             query = f"# {query}\n\n"
             html = markdown.markdown(res)
             key_results.append((query, f"{html}\n\n\n\n"))
+
+    print(Fore.CYAN + f"\nRESULTS COMPILED. SAVED TO DIRECTORY `out`\n")
 
     return key_results
 

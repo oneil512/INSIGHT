@@ -133,7 +133,11 @@ while True:
                 for abstract in article.iter("AbstractText"):
                     res_ += f"{abstract.text}\n"
                 for author in article.iter("Author"):
-                    res_ += f"{author.find('LastName').text}, {author.find('ForeName').text}\n"
+                    try:
+                        res_ += f"{author.find('LastName').text}"
+                        res_ += f", {author.find('ForeName').text}\n"
+                    except:
+                        pass
                 for journal in article.iter("Journal"):
                     res_ += f"{journal.find('Title').text}\n"
                 for volume in article.iter("Volume"):
@@ -147,7 +151,7 @@ while True:
                         month = pubdate.find("Month").text
                         res_ += f"-{month}"
                         day = pubdate.find("Day").text
-                        res_ += f"{day}\n"
+                        res_ += f"-{day}\n"
                     except:
                         pass
                 for doi in article.iter("ELocationID"):
