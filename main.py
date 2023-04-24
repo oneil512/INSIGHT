@@ -11,7 +11,7 @@ from langchain import OpenAI
 from llama_index import GPTListIndex, GPTSimpleVectorIndex, LLMPredictor, ServiceContext
 
 from agents import boss_agent, worker_agent
-from config import EMAIL
+from config import EMAIL, OPENAI_API_KEY
 from utils import (
     execute_python,
     get_ada_embedding,
@@ -33,7 +33,7 @@ TOOLS = ["MYGENE", "PUBMED"]
 
 # Create llama index
 llm_predictor = LLMPredictor(
-    llm=OpenAI(temperature=0, model_name="text-davinci-003", max_tokens=2000)
+    llm=OpenAI(temperature=0, openai_api_key=(OPENAI_API_KEY or os.environ["OPENAI_API_KEY"]), model_name="text-davinci-003", max_tokens=2000)
 )
 service_context = ServiceContext.from_defaults(llm_predictor=llm_predictor)
 index = GPTSimpleVectorIndex([], service_context=service_context)
