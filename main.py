@@ -7,7 +7,7 @@ from collections import defaultdict, deque
 import llama_index
 from Bio import Entrez
 from colorama import Fore
-from langchain import OpenAI
+from langchain.chat_models import ChatOpenAI
 from llama_index import GPTListIndex, GPTSimpleVectorIndex, LLMPredictor, ServiceContext
 
 from agents import boss_agent, worker_agent
@@ -38,7 +38,7 @@ TOOLS = ["MYGENE", "PUBMED"]
 
 # Create llama index
 llm_predictor = LLMPredictor(
-    llm=OpenAI(temperature=0, openai_api_key=(OPENAI_API_KEY or os.environ["OPENAI_API_KEY"]), model_name="text-davinci-003", max_tokens=2000)
+    llm=ChatOpenAI(temperature=0, openai_api_key=(OPENAI_API_KEY or os.environ["OPENAI_API_KEY"]), model_name="gpt-3.5-turbo", max_tokens=-1)
 )
 service_context = ServiceContext.from_defaults(llm_predictor=llm_predictor)
 index = GPTSimpleVectorIndex([], service_context=service_context)
