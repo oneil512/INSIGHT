@@ -207,5 +207,5 @@ while True:
         break
 
 
-doc_store["key_results"] = get_key_results(index)
+doc_store["key_results"] = get_key_results(index, OBJECTIVE)
 save(doc_store, OBJECTIVE, current_datetime)
