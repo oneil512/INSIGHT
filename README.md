@@ -40,6 +40,10 @@ graph TB;
     - EMAIL
     - OPENAI_API_KEY
 
+    OR
+
+    Add your email and api key to the config file. IF YOU DO THIS, DO NOT COMMIT THEM WITH ANY VERSION CONTROL SYSTEM!
+
 3. run `pip install -r requirements.txt`
 4. run `python main.py`
 
