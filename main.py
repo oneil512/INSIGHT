@@ -38,7 +38,7 @@ TOOLS = ["MYGENE", "PUBMED"]
 
 # Create llama index
 llm_predictor = LLMPredictor(
-    llm=ChatOpenAI(temperature=0, openai_api_key=(OPENAI_API_KEY or os.environ["OPENAI_API_KEY"]), model_name="gpt-3.5-turbo", max_tokens=2000)
+    llm=ChatOpenAI(temperature=0, openai_api_key=(OPENAI_API_KEY or os.environ["OPENAI_API_KEY"]), model_name="gpt-3.5-turbo")
 )
 service_context = ServiceContext.from_defaults(llm_predictor=llm_predictor)
 index = GPTSimpleVectorIndex([], service_context=service_context)
@@ -163,16 +163,16 @@ while True:
             doc_store["tasks"][doc_store_key]["result_code"] = result_code
 
         for i, r in enumerate(result):
-            result = str(result)[:RESULT_CUTOFF] # Occasionally an enormous result will slow the program to a halt. Not ideal to lose results but putting in place for now.
-            vectorized_data = get_ada_embedding(result)
+            r = str(r)[:RESULT_CUTOFF] # Occasionally an enormous result will slow the program to a halt. Not ideal to lose results but putting in place for now.
+            vectorized_data = get_ada_embedding(r)
             task_id = f"doc_id_{task_id_counter}_{i}"
-            insert_doc_llama_index(index, vectorized_data, task_id, result)
+            insert_doc_llama_index(index, vectorized_data, task_id, r)
 
             doc_store["tasks"][doc_store_key]["results"].append(
                 {
                     "task_id_counter": task_id_counter,
                     "vectorized_data": vectorized_data,
-                    "output": result,
+                    "output": r,
                 }
             )
 
