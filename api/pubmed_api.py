@@ -9,22 +9,20 @@ API PARAMETERS
     - query_term: What is being searched
     - retmax: Max results to return
     - retstart: Where to start searching from
-    - sort: How to sort results
 
 API EXAMPLES
 
-Here is an example showing how to find a list of ids of pubmed articles about breast cancer, and then get the abstracts of those studies.
+Here is an example showing how to find a list of 10 ids of pubmed articles about breast cancer, and then get the abstracts of those studies.
 
 ===
 
 from Bio import Entrez
 
 query_term = "breast cancer"
-retmax=6
+retmax=10
 retstart=0
-sort='relevance'
 
-search_handle = Entrez.esearch(db="pubmed", term=query_term, retmax=retmax, retstart=retstart, sort=sort)
+search_handle = Entrez.esearch(db="pubmed", term=query_term, retmax=retmax, retstart=retstart)
 search_results = Entrez.read(search_handle)
 search_handle.close()
 
