@@ -183,8 +183,9 @@ while True:
         break
 
 
+
 doc_store["key_results"] = get_key_results(index, OBJECTIVE, top_k=20)
-save(doc_store, OBJECTIVE, current_datetime)
+save(index, doc_store, OBJECTIVE, current_datetime)
 
 end_time = time.time()
 total_time = end_time - start_time

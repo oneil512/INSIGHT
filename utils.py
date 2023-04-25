@@ -61,7 +61,7 @@ def get_key_results(index, objective, top_k=50):
             print(f"Exception getting key result {query}, error {e}")
 
         if res:
-            query = f"# {query}\n\n"
+            query = f"## {query}\n\n"
             html = markdown.markdown(res)
             key_results.append((query, f"{html}\n\n\n\n"))
 
@@ -349,11 +349,15 @@ def write_file(path, contents, mode="w"):
         f.write(contents)
 
 
-def save(doc_store, OBJECTIVE, current_datetime):
+def save(index, doc_store, OBJECTIVE, current_datetime):
     path = os.path.join("./out", OBJECTIVE + "_" + current_datetime)
     make_dir(path)
 
+    index.save_to_disk(os.path.join(path, 'index.json'))
+
     if "key_results" in doc_store:
+        header = f"# {OBJECTIVE}\nDate: {current_datetime}\n\n"
+        write_file(os.path.join(path, "key_findings.md"), header, mode="a+")
         for res in doc_store["key_results"]:
             content = f"{res[0]}{res[1]}"
             write_file(os.path.join(path, "key_findings.md"), content, mode="a+")
@@ -376,38 +380,5 @@ def save(doc_store, OBJECTIVE, current_datetime):
                 str(result["vectorized_data"]),
             )
 
-
-### DEPRECATED FUNCTIONS ###
-
-
-def facilitator_agent(task: str, python: bool, result: str) -> str:
-    if python:
-        result = execute_python(result)
-
-    prompt = f"""You are an AI who takes a world model, a task description, and the result of that task. You must integrate the result of that task into the world model. 
-Do not delete any information from the world model, just integrate the results into it. Respond with an updated world model. The updated world model should be valid json.
-Current world model: {world_model}
-Task: {task}
-Task result: {result}
-Updated world model:"""
-    response = openai.Completion.create(
-        engine="text-davinci-003",
-        prompt=prompt,
-        temperature=0.1,
-        max_tokens=get_max_completion_len(prompt),
-        top_p=1,
-        frequency_penalty=0,
-        presence_penalty=0,
-    )
-    return literal_eval(response.choices[0].text.strip().replace("\n", ""))
-
-
-def create_initial_world_model():
-    # Create an initial world model with basic information
-    # You can customize this function based on the specific problem domain
-    world_model = {
-        "Geography": {
-            "United States": {"number of states": 50, "largest state": "Alaska"}
-        }
-    }
-    return world_model
+def load():
+    pass

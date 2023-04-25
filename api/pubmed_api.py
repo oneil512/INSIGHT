@@ -9,7 +9,7 @@ API PARAMETERS
     - query_term: What is being searched
     - retmax: Max results to return
     - retstart: Where to start searching from
-    - sort: How to sort results [relevance|pub_date]
+    - sort: How to sort results
 
 API EXAMPLES
 
