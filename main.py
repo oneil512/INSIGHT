@@ -206,7 +206,7 @@ def run(
         if task_id_counter > MAX_ITERATIONS:
             break
 
-    doc_store["key_results"] = get_key_results(index, OBJECTIVE, top_k=1)
+    doc_store["key_results"] = get_key_results(index, OBJECTIVE, top_k=20)
     save(
         index,
         doc_store,
