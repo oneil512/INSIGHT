@@ -93,7 +93,6 @@ def process_mygene_result(result):
     for res in result:
 
         json_data = res
-        useful_info = {}
 
         _id = json_data.get('_id')
         _version = json_data.get('_version')
@@ -102,42 +101,22 @@ def process_mygene_result(result):
         symbol = json_data.get('symbol')
         taxid = json_data.get('taxid')
         type_of_gene = json_data.get('type_of_gene')
+        summary = json_data.get('summary')
 
-        useful_info['info'] = {
-            '_id': _id,
-            '_version': _version,
-            'name': name,
-            'refseq': refseq,
-            'symbol': symbol,
-            'taxid': taxid,
-            'type_of_gene': type_of_gene,
-            'generifs': []
-        }
-        generifs = json_data.get('generif', [])
-        for generif in generifs:
-            pubmed = generif.get('pubmed')
-            text = generif.get('text')
-            if pubmed and text and 'HuGE Navigator' not in text: # The GeneRifs from HuGE Navigator are sometimes numerous and not useful from what I have seen.
-                if text not in [g['text'] for g in useful_info['info']['generifs']]:
-                    useful_info['info']['generifs'].append({'pubmed': pubmed, 'text': text})
-
-
-        item = useful_info['info']
-        output = f"ID: {item['_id']}\n"
-        output += f"Version: {item['_version']}\n"
-        if item['name']:
-            output += f"Name: {item['name']}\n"
-        if item['refseq']:
-            output += f"RefSeq: {', '.join(item['refseq'])}\n"
-        if item['symbol']:
-            output += f"Symbol: {item['symbol']}\n"
-        if item['taxid']:
-            output += f"Tax ID: {item['taxid']}\n"
-        if item['type_of_gene']:
-            output += f"Type of gene: {item['type_of_gene']}\n"
-        for generif in item['generifs']:
-            output += f"PubMed ID: {generif['pubmed']}\n"
-            output += f"Text: {generif['text']}\n"
+        output = f"ID: {_id}\n"
+        output += f"Version: {_version}\n"
+        if name:
+            output += f"Name: {name}\n"
+        if refseq:
+            output += f"RefSeq: {', '.join(refseq)}\n"
+        if symbol:
+            output += f"Symbol: {symbol}\n"
+        if taxid:
+            output += f"Tax ID: {taxid}\n"
+        if type_of_gene:
+            output += f"Type of gene: {type_of_gene}\n"
+        if summary:
+            output += f"Summary of {name}: {summary}\n"
         output += '\n'
 
         processed_result.append(output)
