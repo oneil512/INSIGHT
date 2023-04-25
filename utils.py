@@ -1,17 +1,20 @@
+import json
 import logging
 import os
+import time
+import xml.etree.ElementTree as ET
+from collections import defaultdict, deque
 from functools import partial
 
 import backoff
 import llama_index
-import json
 import markdown
 import openai
 import tiktoken
 from colorama import Fore
-from llama_index import Document
+from langchain import OpenAI
+from llama_index import Document, GPTSimpleVectorIndex, LLMPredictor, ServiceContext
 from llama_index.indices.composability import ComposableGraph
-import xml.etree.ElementTree as ET
 
 from api.mygene_api import mygene_api
 from api.pubmed_api import pubmed_api
@@ -19,12 +22,11 @@ from config import OPENAI_API_KEY
 
 logging.getLogger("llama_index").setLevel(logging.WARNING)
 
-
 MAX_TOKENS = 4097
-
 api_info_mapping = {"mygene": mygene_api, "PubMed": pubmed_api}
 
-openai.api_key = OPENAI_API_KEY or os.environ["OPENAI_API_KEY"]
+api_key = OPENAI_API_KEY or os.environ["OPENAI_API_KEY"]
+openai.api_key = api_key
 
 
 def num_tokens_from_string(string: str, encoding_name: str = "gpt2") -> int:
@@ -49,7 +51,7 @@ def get_key_results(index, objective, top_k=50):
         "Generate several creative hypotheses given the data.",
         "What are some high level research directions to explore further given the data?",
         "Describe the key findings in great detail. Do not include filler words. Cite your sources with the citation information.",
-        f"Do your best to answer the objective: {objective} given the information. Cite your sources with the citation information."
+        f"Do your best to answer the objective: {objective} given the information. Cite your sources with the citation information.",
     ]
 
     for query in queries:
@@ -61,7 +63,7 @@ def get_key_results(index, objective, top_k=50):
             print(f"Exception getting key result {query}, error {e}")
 
         if res:
-            query = f"# {query}\n\n"
+            query = f"## {query}\n\n"
             html = markdown.markdown(res)
             key_results.append((query, f"{html}\n\n\n\n"))
 
@@ -87,26 +89,26 @@ def execute_python(code: str):
 
     return loc["ret"]
 
+
 def process_mygene_result(result):
     processed_result = []
 
     for res in result:
-
         json_data = res
 
-        _id = json_data.get('_id')
-        _version = json_data.get('_version')
-        name = json_data.get('name')
-        refseq = json_data.get('refseq', {}).get('genomic', [])
-        symbol = json_data.get('symbol')
-        taxid = json_data.get('taxid')
-        pathway = json_data.get('pathway')
-        type_of_gene = json_data.get('type_of_gene')
-        summary = json_data.get('summary')
-        kegg = json_data.get('kegg', [])
-        pid = json_data.get('pid', {})
-        reactome = json_data.get('reactome', [])
-        wikipathways = json_data.get('wikipathways', {})
+        _id = json_data.get("_id")
+        _version = json_data.get("_version")
+        name = json_data.get("name")
+        refseq = json_data.get("refseq", {}).get("genomic", [])
+        symbol = json_data.get("symbol")
+        taxid = json_data.get("taxid")
+        pathway = json_data.get("pathway")
+        type_of_gene = json_data.get("type_of_gene")
+        summary = json_data.get("summary")
+        kegg = json_data.get("kegg", [])
+        pid = json_data.get("pid", {})
+        reactome = json_data.get("reactome", [])
+        wikipathways = json_data.get("wikipathways", {})
 
         output = f"ID: {_id}\n"
         output += f"\nVersion: {_version}\n"
@@ -141,12 +143,11 @@ def process_mygene_result(result):
             output += f"Type of gene: {type_of_gene}\n"
         if summary:
             output += f"Summary of {name}: {summary}\n"
-        output += '\n'
+        output += "\n"
 
         processed_result.append(output)
 
     return processed_result
-    
 
 
 def process_pubmed_result(result):
@@ -188,6 +189,7 @@ def process_pubmed_result(result):
         processed_result.append(res_)
 
     return processed_result
+
 
 def prune_gene_results(res):
     pass
@@ -349,14 +351,49 @@ def write_file(path, contents, mode="w"):
         f.write(contents)
 
 
-def save(doc_store, OBJECTIVE, current_datetime):
+def save(
+    index,
+    doc_store,
+    OBJECTIVE,
+    current_datetime,
+    task_id_counter,
+    task_list,
+    completed_tasks,
+    cache,
+    reload_count,
+):
+    # Make basepath.
     path = os.path.join("./out", OBJECTIVE + "_" + current_datetime)
     make_dir(path)
 
+    # Save llama index.
+    index.save_to_disk(os.path.join(path, "index.json"))
+
+    # Save program state.
+    state = {
+        "reload_count": reload_count,
+        "task_id_counter": task_id_counter,
+        "task_list": list(task_list),
+        "completed_tasks": completed_tasks,
+        "cache": dict(cache),
+        "current_datetime": current_datetime,
+        "objective": OBJECTIVE,
+    }
+    with open(os.path.join(path, "state.json"), "w") as outfile:
+        json.dump(state, outfile)
+
+    # Save results.
     if "key_results" in doc_store:
+        if reload_count:
+            new_time = str(time.strftime("%Y-%m-%d_%H-%M-%S"))
+            header = f"# {OBJECTIVE}\nDate: {new_time}\n\n"
+        else:
+            header = f"# {OBJECTIVE}\nDate: {current_datetime}\n\n"
+        key_findings_path = os.path.join(path, f"key_findings_{reload_count}.md")
+        write_file(key_findings_path, header, mode="a+")
         for res in doc_store["key_results"]:
             content = f"{res[0]}{res[1]}"
-            write_file(os.path.join(path, "key_findings.md"), content, mode="a+")
+            write_file(key_findings_path, content, mode="a+")
 
     for task, doc in doc_store["tasks"].items():
         doc_path = os.path.join(path, task)
@@ -377,37 +414,44 @@ def save(doc_store, OBJECTIVE, current_datetime):
             )
 
 
-### DEPRECATED FUNCTIONS ###
-
-
-def facilitator_agent(task: str, python: bool, result: str) -> str:
-    if python:
-        result = execute_python(result)
-
-    prompt = f"""You are an AI who takes a world model, a task description, and the result of that task. You must integrate the result of that task into the world model. 
-Do not delete any information from the world model, just integrate the results into it. Respond with an updated world model. The updated world model should be valid json.
-Current world model: {world_model}
-Task: {task}
-Task result: {result}
-Updated world model:"""
-    response = openai.Completion.create(
-        engine="text-davinci-003",
-        prompt=prompt,
-        temperature=0.1,
-        max_tokens=get_max_completion_len(prompt),
-        top_p=1,
-        frequency_penalty=0,
-        presence_penalty=0,
+def load(path):
+    llm_predictor = LLMPredictor(
+        llm=OpenAI(
+            temperature=0,
+            openai_api_key=api_key,
+            model_name="text-davinci-003",
+            max_tokens=2000,
+        )
     )
-    return literal_eval(response.choices[0].text.strip().replace("\n", ""))
+    service_context = ServiceContext.from_defaults(llm_predictor=llm_predictor)
+    index = GPTSimpleVectorIndex.load_from_disk(
+        os.path.join(path, "index.json"), service_context=service_context
+    )
+    state_path = os.path.join(path, "state.json")
+    if os.path.exists(state_path):
+        with open(state_path, "r") as f:
+            json_data = json.load(f)
 
+            try:
+                reload_count = json_data["reload_count"] + 1
+                task_id_counter = json_data["task_id_counter"]
+                task_list = json_data["task_list"]
+                completed_tasks = json_data["completed_tasks"]
+                cache = defaultdict(list, json_data["cache"])
+                current_datetime = json_data["current_datetime"]
+                objective = json_data["objective"]
+            except KeyError as e:
+                raise Exception(
+                    f"Missing key '{e.args[0]}' in JSON file at path '{state_path}'"
+                )
 
-def create_initial_world_model():
-    # Create an initial world model with basic information
-    # You can customize this function based on the specific problem domain
-    world_model = {
-        "Geography": {
-            "United States": {"number of states": 50, "largest state": "Alaska"}
-        }
-    }
-    return world_model
+    return (
+        index,
+        task_id_counter,
+        deque(task_list),
+        completed_tasks,
+        cache,
+        current_datetime,
+        objective,
+        reload_count,
+    )
