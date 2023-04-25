@@ -100,11 +100,16 @@ def process_mygene_result(result):
         refseq = json_data.get('refseq', {}).get('genomic', [])
         symbol = json_data.get('symbol')
         taxid = json_data.get('taxid')
+        pathway = json_data.get('pathway')
         type_of_gene = json_data.get('type_of_gene')
         summary = json_data.get('summary')
+        kegg = json_data.get('kegg', [])
+        pid = json_data.get('pid', {})
+        reactome = json_data.get('reactome', [])
+        wikipathways = json_data.get('wikipathways', {})
 
         output = f"ID: {_id}\n"
-        output += f"Version: {_version}\n"
+        output += f"\nVersion: {_version}\n"
         if name:
             output += f"Name: {name}\n"
         if refseq:
@@ -113,6 +118,25 @@ def process_mygene_result(result):
             output += f"Symbol: {symbol}\n"
         if taxid:
             output += f"Tax ID: {taxid}\n"
+
+        output += f"PATHWAYS\n\n"
+        output += "Kegg:\n"
+        for item in kegg:
+            output += f" ID: {item.get('id', '')}"
+            output += f" Name: {item.get('name', '')}"
+
+        output += "\nPid:\n"
+        output += f" ID: {pid.get('id', '')}"
+        output += f" Name: {pid.get('name', '')}"
+
+        output += "\nReactome:\n"
+        for item in reactome:
+            output += f" ID: {item.get('id', '')}"
+            output += f" Name: {item.get('name', '')}"
+
+        output += "\nWikipathways:\n"
+        output += f"  ID: {wikipathways.get('id', '')}"
+        output += f"  Name: {wikipathways.get('name', '')}"
         if type_of_gene:
             output += f"Type of gene: {type_of_gene}\n"
         if summary:
