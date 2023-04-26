@@ -16,13 +16,15 @@ def boss_agent(
     objective: str,
     tool_description: str,
     task_list: List[str],
-    executive_summary="No tasks completed Yet.",
-    completed_tasks=List[str],
+    completed_tasks: List[str],
+    executive_summary: str = "No tasks completed Yet.",
+    no_result_notification: str = ""
 ):
-    system_prompt = """You are BossGPT, a responsible and organized agent that is responsible for completing a high level and difficult objective. 
-As the boss, your goal is to break the high level objective down into small and managable tasks for your workers. These tasks will be picked up by your worker agents and completed. 
-You will also get an executive summary of what your workers have accomplished so far. Use the summary to make decisions about what tasks to do next, what tasks to get rid of, 
-and to reprioritize tasks. The highest priority task will be at the top of the task list.
+    
+    system_prompt = """You are BossGPT, a responsible and organized agent that is responsible for completing a high level and difficult objective.
+As the boss, your goal is to break the high level objective down into small and managable tasks for your workers. These tasks will be picked up by your worker agents and completed.
+You will also get an executive summary of what your workers have accomplished so far. Use the summary to make decisions about what tasks to do next, what tasks to get rid of, and to reprioritize tasks.
+The highest priority task will be at the top of the task list.
 
 You also have access to some tools. You can create a task for your workers to use any of your tools. You cannot use more than one tool per task.
 Your worker agents update the executive summary so that you can use new information from the completed tasks to make informed decisions about what to do next. 
@@ -49,9 +51,9 @@ Here is your objective: {objective}
 Here is the current task list: {task_list}
 Here are the tasks that have been complete thus far: {completed_tasks}
 Here are the tools you have access to: {tool_description}
-Here is an executive summary of the information gathered so far {executive_summary}
-
-If a task has already been completed, do not write that same task again in the task list. If you would like a worker to continue or redo a task, be sure to word it a little differently so you don't get the same result.
+Here is an executive summary of the information gathered so far: {executive_summary}
+{no_result_notification}
+Note: If a task has already been completed, do not write that same task again in the task list. If you would like a worker to continue or redo a task, be sure to word it a little differently so you don't get the same result.
 
 ===
 
@@ -70,7 +72,7 @@ Here is an example of the tasks list. Be sure that it is valid python:
 TASKS
 ["Research frog habitats", "Find all species of trees", "Get world population", "Retrieve facts about the american civil war"]
 
-Note: To be sure that TASKS is a valid python list, it should always start with '[' and always end with ']'
+Note: To be sure that TASKS is a valid python list, it should always start with [ and always end with ]
     
     """.strip()
 

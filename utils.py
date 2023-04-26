@@ -22,6 +22,11 @@ from config import OPENAI_API_KEY
 
 logging.getLogger("llama_index").setLevel(logging.WARNING)
 
+#file_handler = logging.FileHandler('utils.log')
+# Configure the logging settings
+#logging.basicConfig(level=logging.INFO, handlers=[file_handler])
+
+
 MAX_TOKENS = 4097
 api_info_mapping = {"mygene": mygene_api, "PubMed": pubmed_api}
 
@@ -79,10 +84,10 @@ def get_max_completion_len(prompt):
 
 def execute_python(code: str):
     # ret is defined in the code string
-
     loc = {}
     try:
         exec(code, globals(), loc)
+
     except Exception as e:
         print(f"Exception executing code {code}, {e}")
         return
@@ -93,6 +98,7 @@ def execute_python(code: str):
 def process_mygene_result(result):
     processed_result = []
 
+    # Each result will be split into 2 documents: summary and pathway
     for res in result:
         json_data = res
 
@@ -102,50 +108,71 @@ def process_mygene_result(result):
         refseq = json_data.get("refseq", {}).get("genomic", [])
         symbol = json_data.get("symbol")
         taxid = json_data.get("taxid")
-        pathway = json_data.get("pathway")
         type_of_gene = json_data.get("type_of_gene")
         summary = json_data.get("summary")
-        kegg = json_data.get("kegg", [])
-        pid = json_data.get("pid", {})
-        reactome = json_data.get("reactome", [])
-        wikipathways = json_data.get("wikipathways", {})
 
-        output = f"ID: {_id}\n"
-        output += f"\nVersion: {_version}\n"
+        # Summary
+
+        output_summary = f"ID: {_id}\n"
+        output_summary += f"\nVersion: {_version}\n"
         if name:
-            output += f"Name: {name}\n"
+            output_summary += f"Name: {name}\n"
         if refseq:
-            output += f"RefSeq: {', '.join(refseq)}\n"
+            output_summary += f"RefSeq: {', '.join(refseq)}\n"
         if symbol:
-            output += f"Symbol: {symbol}\n"
+            output_summary += f"Symbol: {symbol}\n"
         if taxid:
-            output += f"Tax ID: {taxid}\n"
-
-        output += f"PATHWAYS\n\n"
-        output += "Kegg:\n"
-        for item in kegg:
-            output += f" ID: {item.get('id', '')}"
-            output += f" Name: {item.get('name', '')}"
-
-        output += "\nPid:\n"
-        output += f" ID: {pid.get('id', '')}"
-        output += f" Name: {pid.get('name', '')}"
-
-        output += "\nReactome:\n"
-        for item in reactome:
-            output += f" ID: {item.get('id', '')}"
-            output += f" Name: {item.get('name', '')}"
-
-        output += "\nWikipathways:\n"
-        output += f"  ID: {wikipathways.get('id', '')}"
-        output += f"  Name: {wikipathways.get('name', '')}"
+            output_summary += f"Tax ID: {taxid}\n"
         if type_of_gene:
-            output += f"Type of gene: {type_of_gene}\n"
+            output_summary += f"Type of gene: {type_of_gene}\n"
         if summary:
-            output += f"Summary of {name}: {summary}\n"
-        output += "\n"
+            output_summary += f"Summary of {name}: {summary}\n"
 
-        processed_result.append(output)
+        #logging.info(f"Mygene Summary result {name}, length is {str(len(output_summary))}")
+        processed_result.append(output_summary)
+        
+
+        # Pathway
+
+        pathway = json_data.get("pathway")
+        if pathway:
+            kegg = pathway.get("kegg", [])
+            pid = pathway.get("pid", [])
+            reactome = pathway.get("reactome", [])
+            wikipathways = pathway.get("wikipathways", [])
+            netpath = pathway.get("netpath", [])
+            biocarta = pathway.get("biocarta", [])
+
+            pathway_elements = {"kegg": kegg, "pid": pid, "reactome": reactome, "wikipathways": wikipathways, "netpath": netpath, "biocarta": biocarta}
+
+            # mygene returns dicts instead of lists if singleton
+            # Wrap with list if not list
+            for k,v in pathway_elements.items():
+                if type(v) is not list:
+                    pathway_elements[k] = [v]
+
+
+            output_pathway = f"ID: {_id}\n"
+            if name:
+                output_pathway += f"Name: {name}\n"
+            if symbol:
+                output_pathway += f"Symbol: {symbol}\n"
+            if taxid:
+                output_pathway += f"Tax ID: {taxid}\n"
+            if type_of_gene:
+                output_pathway += f"Type of gene: {type_of_gene}\n"
+
+            output_pathway += f"PATHWAYS\n\n"
+
+            for k,v in pathway_elements.items():
+                output_pathway += "\n{k}:\n"
+                for item in v:
+                    output_pathway += f" ID: {item.get('id', '')}"
+                    output_pathway += f" Name: {item.get('name', '')}"
+
+            #logging.info(f"Mygene Pathway result {name}, length is {len(output_pathway)}")
+         
+            processed_result.append(output_pathway)
 
     return processed_result
 

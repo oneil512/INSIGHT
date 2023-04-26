@@ -94,6 +94,9 @@ def run(
     print(Fore.CYAN, "\n*****OBJECTIVE*****\n")
     print(OBJECTIVE)
 
+
+    prev_iteration_no_result_notification = ""
+
     while True:
         # States used in each iteration
         result_code = None
@@ -101,10 +104,10 @@ def run(
         cache_params = None
         params = None
 
-        if task_id_counter > 1:
+        if index.docstore.docs:
             executive_summary = query_knowledge_base(index)
         else:
-            executive_summary = "No tasks completed yet."
+            executive_summary = "No information gathered yet."
 
         task_list, thoughts = boss_agent(
             objective=OBJECTIVE,
@@ -112,6 +115,7 @@ def run(
             task_list=task_list,
             executive_summary=executive_summary,
             completed_tasks=completed_tasks,
+            no_result_notification=prev_iteration_no_result_notification
         )
 
         print(Fore.CYAN + "\n*****EXECUTIVE SUMMARY*****\n")
@@ -129,7 +133,7 @@ def run(
             task = task_list.popleft()
 
             context = ""
-            if task_id_counter > 1:
+            if index.docstore.docs:
                 context = query_knowledge_base(
                     index,
                     query=f"Provide as much useful context as possible for this task: {task}",
@@ -154,8 +158,15 @@ def run(
 
             # If task result was python code
             if python:
+                results_returned = True
                 result_code = result
                 result = execute_python(result)
+                if (result is not None) and (not result): # Execution complete succesfully, but result was empty
+                    results_returned = False
+                    result_code = "NOTE: Code returned no results\n\n" + result_code
+                    
+                    prev_iteration_no_result_notification = f"Note: Task '{task}' completed but returned no results. Please decide if you should retry. If so, please change something so that you will get a result."
+                    print(Fore.BLUE + f"Task '{task}' completed but returned no results")
 
                 if "MYGENE" in task:
                     params = get_code_params(
@@ -163,7 +174,10 @@ def run(
                         preparam_text="mygene.MyGeneInfo()",
                         postparam_text="gene_results = mg.query(",
                     )
-                    cache["MYGENE"].append(params)
+                    if results_returned:
+                        cache["MYGENE"].append(f"---\n{params}---\n")
+                    else:
+                        cache["MYGENE"].append(f"---\nNote: This call returned no results\n{params}---\n")
                     result = process_mygene_result(result)
 
                 if "PUBMED" in task:
@@ -172,7 +186,10 @@ def run(
                         preparam_text="from Bio import Entrez",
                         postparam_text="search_handle = Entrez.esearch(",
                     )
-                    cache["PUBMED"].append(params)
+                    if results_returned:
+                        cache["PUBMED"].append(f"---\n{params}---\n")
+                    else:
+                        cache["PUBMED"].append(f"---\nNote: This call returned no results\n{params}---\n")
                     result = process_pubmed_result(result)
 
             if type(result) is not list:
@@ -186,6 +203,9 @@ def run(
                 doc_store["tasks"][doc_store_key]["result_code"] = result_code
 
             for i, r in enumerate(result):
+
+                # We have result, clear out no result notification
+                prev_iteration_no_result_notification = ""
                 r = str(r)[
                     :RESULT_CUTOFF
                 ]  # Occasionally an enormous result will slow the program to a halt. Not ideal to lose results but putting in place for now.
@@ -227,8 +247,8 @@ def run(
 ### Set variables here.
 
 TOOLS = ["MYGENE", "PUBMED"]
-MAX_ITERATIONS = 1
-OBJECTIVE = "Cure breast cancer"
+MAX_ITERATIONS = 3
+OBJECTIVE = "Research possible connections to arythmia and deafness."
 
 
 # If you would like to reload a previous state, comment out run(OBJECTIVE=OBJECTIVE, MAX_ITERATIONS=MAX_ITERATIONS, TOOLS=TOOLS) and uncomment #run(reload_path="out/Cure breast cancer_2023-04-25_16-38-42")
