@@ -7,6 +7,7 @@ API RULES
     - Every code block must end by assigning the output to a variable called 'ret'
     - Forward slashes in the query must by escaped with a backwards slash:
         Instead of query_term="abc/123" do query_term="abc\/123"
+    - Only use the fields you see in the examples. Do not create any of your own fields
 
 API PARAMETERS
     - size: How many genes you will get back

@@ -4,6 +4,7 @@ API RULES
     - Every code block that calls to the mygene api must start with this line:
         from Bio import Entrez
     - Every code block must end by assigning the output to a variable called 'ret'
+    - Only use the fields you see in the examples. Do not create any of your own fields
 
 API PARAMETERS
     - query_term: What is being searched
@@ -19,7 +20,7 @@ Here is an example showing how to find a list of 10 ids of pubmed articles about
 from Bio import Entrez
 
 query_term = "breast cancer"
-retmax=10
+retmax=6
 retstart=0
 
 search_handle = Entrez.esearch(db="pubmed", term=query_term, retmax=retmax, retstart=retstart)

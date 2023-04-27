@@ -25,7 +25,10 @@ from utils import (
     query_knowledge_base,
     save,
     handle_python_result,
-    handle_results
+    handle_results,
+    create_index,
+    create_graph_index,
+    create_list_index
 )
 
 logging.getLogger("llama_index").setLevel(logging.WARNING)
@@ -33,6 +36,9 @@ logging.getLogger("llama_index").setLevel(logging.WARNING)
 Entrez.email = EMAIL or os.environ["EMAIL"]
 MAX_TOKENS = 4097
 api_key = OPENAI_API_KEY or os.environ["OPENAI_API_KEY"]
+
+indicies = []
+summaries = []
 
 
 def run(
@@ -69,20 +75,13 @@ def run(
 
     else:
         if not index:
-            llm_predictor = LLMPredictor(
-                llm=OpenAI(
-                    temperature=0,
-                    openai_api_key=api_key,
-                    model_name="text-davinci-003",
-                    max_tokens=2000,
-                )
-            )
-            service_context = ServiceContext.from_defaults(llm_predictor=llm_predictor)
-            index = GPTSimpleVectorIndex([], service_context=service_context)
-
+            index = create_index(api_key)
+            list_index = create_list_index(api_key=api_key)
+            master_index = create_index(api_key=api_key)
         current_datetime = current_datetime or str(time.strftime("%Y-%m-%d_%H-%M-%S"))
 
     doc_store = {"tasks": {}}
+
     tool_description_mapping = {
         "PUBMED": """2) Query PubMed API. This is useful for searching biomedical literature and studies on any medical subject. If you wish to make a task to create an API request to the PubMed API then simply say 'PUBMED:' followed by what you would like to search for. Example: 'PUBMED: Find recent developments in HIV research'""",
         "MYGENE": """1) Query mygene API. This is useful for finding information on specific genes, or genes associated with the search query. If you wish to make a task to create an API request to mygene then simply say 'MYGENE:' followed by what you would like to search for. Example: 'MYGENE: look up information on genes that are linked to cancer'""",
@@ -107,11 +106,12 @@ def run(
             objective=OBJECTIVE,
             tool_description=tool_description,
             task_list=task_list,
-            index=index,
+            summaries=summaries,
             completed_tasks=completed_tasks,
             previous_task=task,
             previous_result=result
         )
+
 
         if not task_list:
             print(Fore.RED + "TASK LIST EMPTY")
@@ -144,15 +144,25 @@ def run(
 
         handle_results(result, index, doc_store, doc_store_task_key, task_id_counter, RESULT_CUTOFF)
 
+        if index.docstore.docs:
+            query="Give a detailed but terse overview of all the information. Start with a high level summary and then go into details. Do not include any further instruction. Do not include filler words. Include citation information."
+            executive_summary = query_knowledge_base(index, query=query, list_index=False)
+            insert_doc_llama_index(index=master_index, doc_id=str(task_id_counter), metadata=executive_summary)
+            summaries.append(executive_summary)
+            indicies.append(index)
+            doc_store["tasks"][doc_store_task_key]["executive_summary"] = executive_summary
+
+            index = create_index(api_key=api_key)
+
         task_id_counter += 1
 
         if task_id_counter > MAX_ITERATIONS:
             break
 
-    doc_store["key_results"] = get_key_results(index, OBJECTIVE, top_k=20)
+    doc_store["key_results"] = get_key_results(master_index, OBJECTIVE, top_k=20)
 
     save(
-        index,
+        master_index,
         doc_store,
         OBJECTIVE,
         current_datetime,
@@ -172,7 +182,7 @@ def run(
 ### Set variables here.
 
 TOOLS = ["MYGENE", "PUBMED"]
-MAX_ITERATIONS = 1
+MAX_ITERATIONS = 2
 OBJECTIVE = "Cure breast cancer"
 
 
