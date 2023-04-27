@@ -97,11 +97,10 @@ def run(
     print(OBJECTIVE)
 
 
-    prev_iteration_no_result_notification = ""
+    result = []
+    task = ""
 
     while True:
-        # States used in each iteration
-        result_code = None
         result_is_python = False
 
         task_list = boss_agent(
@@ -110,11 +109,12 @@ def run(
             task_list=task_list,
             index=index,
             completed_tasks=completed_tasks,
-            no_result_notification=prev_iteration_no_result_notification
+            previous_task=task,
+            previous_result=result
         )
 
         if not task_list:
-            print(Fore.RED + "NO TASK LIST")
+            print(Fore.RED + "TASK LIST EMPTY")
             break
 
         print(Fore.WHITE + "\n*****TASK LIST*****\n")
@@ -140,12 +140,9 @@ def run(
         doc_store["tasks"][doc_store_task_key]["results"] = []
 
         if result_is_python:
-            result, cache, prev_iteration_no_result_notification = handle_python_result(result, cache)
-            doc_store["tasks"][doc_store_task_key]["result_code"] = result_code
+            result = handle_python_result(result, cache, task, doc_store, doc_store_task_key)
 
-        if result:
-            prev_iteration_no_result_notification = ""
-            handle_results(result, index, doc_store, doc_store_task_key, task_id_counter, RESULT_CUTOFF)
+        handle_results(result, index, doc_store, doc_store_task_key, task_id_counter, RESULT_CUTOFF)
 
         task_id_counter += 1
 

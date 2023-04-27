@@ -105,35 +105,41 @@ def process_mygene_result(result):
         _id = json_data.get("_id")
         _version = json_data.get("_version")
         name = json_data.get("name")
-        refseq = json_data.get("refseq", {}).get("genomic", [])
+        refseq_genomic = json_data.get("refseq", {}).get("genomic", [])
+        refseq_rna = json_data.get("refseq", {}).get("rna", [])
         symbol = json_data.get("symbol")
         taxid = json_data.get("taxid")
         type_of_gene = json_data.get("type_of_gene")
+        pos = json_data.get("genomic_pos_hg19")
         summary = json_data.get("summary")
 
+        output_summary = ""
         # Summary
-
-        output_summary = f"ID: {_id}\n"
-        output_summary += f"\nVersion: {_version}\n"
         if name:
-            output_summary += f"Name: {name}\n"
-        if refseq:
-            output_summary += f"RefSeq: {', '.join(refseq)}\n"
+            output_summary += f"Gene Name: {name}\n"
+        if refseq_genomic:
+            output_summary += f"RefSeq genomic: {', '.join(refseq_genomic)}\n"
+        if refseq_rna:
+            output_summary += f"RefSeq rna: {', '.join(refseq_rna)}\n"
         if symbol:
             output_summary += f"Symbol: {symbol}\n"
         if taxid:
             output_summary += f"Tax ID: {taxid}\n"
-        if type_of_gene:
+        if type_of_gene and type_of_gene != 'unknown':
             output_summary += f"Type of gene: {type_of_gene}\n"
+        if pos:
+            output_summary += f"Position: {pos}\n"
         if summary:
             output_summary += f"Summary of {name}: {summary}\n"
 
+        output_summary = output_summary.strip()
+
         #logging.info(f"Mygene Summary result {name}, length is {str(len(output_summary))}")
-        processed_result.append(output_summary)
+        if output_summary:
+            processed_result.append(output_summary)
         
 
         # Pathway
-
         pathway = json_data.get("pathway")
         if pathway:
             kegg = pathway.get("kegg", [])
@@ -152,27 +158,35 @@ def process_mygene_result(result):
                     pathway_elements[k] = [v]
 
 
-            output_pathway = f"ID: {_id}\n"
+            output_pathway = ""
             if name:
-                output_pathway += f"Name: {name}\n"
+                output_pathway += f"Gene Name: {name}\n"
             if symbol:
                 output_pathway += f"Symbol: {symbol}\n"
             if taxid:
                 output_pathway += f"Tax ID: {taxid}\n"
-            if type_of_gene:
+            if type_of_gene and type_of_gene != 'unknown':
                 output_pathway += f"Type of gene: {type_of_gene}\n"
+            if refseq_genomic:
+                output_pathway += f"RefSeq genomic: {', '.join(refseq_genomic)}\n"
+            if refseq_rna:
+                output_pathway += f"RefSeq rna: {', '.join(refseq_rna)}\n"
+            if pos:
+                output_pathway += f"Position: {pos}\n"
 
             output_pathway += f"PATHWAYS\n\n"
 
             for k,v in pathway_elements.items():
-                output_pathway += "\n{k}:\n"
+                output_pathway += f"\n{k}:\n"
                 for item in v:
                     output_pathway += f" ID: {item.get('id', '')}"
                     output_pathway += f" Name: {item.get('name', '')}"
 
             #logging.info(f"Mygene Pathway result {name}, length is {len(output_pathway)}")
-         
-            processed_result.append(output_pathway)
+
+            output_pathway = output_pathway.strip()
+            if output_pathway:
+                processed_result.append(output_pathway)
 
     return processed_result
 
@@ -298,20 +312,22 @@ def insert_doc_llama_index(index, embedding, doc_id, metadata):
     index.insert(doc)
 
 
-def handle_python_result(result, cache, task):
+def handle_python_result(result, cache, task, doc_store, doc_store_task_key):
+    
     results_returned = True
-    result_code = result
-    result = execute_python(result)
-    if (result is not None) and (not result): # Execution complete succesfully, but result was empty
+    doc_store["tasks"][doc_store_task_key]["result_code"] = result
+
+    executed_result = execute_python(result)
+
+    if (executed_result is not None) and (not executed_result): # Execution complete succesfully, but executed result was empty list
         results_returned = False
-        result_code = "NOTE: Code returned no results\n\n" + result_code
+        result = "NOTE: Code returned no results\n\n" + result
         
-        prev_iteration_no_result_notification = f"Note: Task '{task}' completed but returned no results. Please decide if you should retry. If so, please change something so that you will get a result."
         print(Fore.BLUE + f"Task '{task}' completed but returned no results")
 
     if "MYGENE" in task:
         params = get_code_params(
-            result_code,
+            result,
             preparam_text="mygene.MyGeneInfo()",
             postparam_text="gene_results = mg.query(",
         )
@@ -319,11 +335,11 @@ def handle_python_result(result, cache, task):
             cache["MYGENE"].append(f"---\n{params}---\n")
         else:
             cache["MYGENE"].append(f"---\nNote: This call returned no results\n{params}---\n")
-        result = process_mygene_result(result)
+        executed_result = process_mygene_result(executed_result)
 
     if "PUBMED" in task:
         params = get_code_params(
-            result_code,
+            result,
             preparam_text="from Bio import Entrez",
             postparam_text="search_handle = Entrez.esearch(",
         )
@@ -331,9 +347,10 @@ def handle_python_result(result, cache, task):
             cache["PUBMED"].append(f"---\n{params}---\n")
         else:
             cache["PUBMED"].append(f"---\nNote: This call returned no results\n{params}---\n")
-        result = process_pubmed_result(result)
+        executed_result = process_pubmed_result(executed_result)
 
-    return result, cache, prev_iteration_no_result_notification
+
+    return executed_result
 
 
 def handle_results(result, index, doc_store, doc_store_key, task_id_counter, RESULT_CUTOFF):
@@ -368,18 +385,6 @@ def query_knowledge_base(
         query, similarity_top_k=top_k, response_mode=response_mode
     )
     return query_response.response
-
-
-def parser(instruction, content):
-    return (
-        openai.Completion.create(
-            engine="text-davinci-003",
-            prompt=instruction + "\nHere is the content to parse:\n" + content,
-            temperature=0.0,
-        )
-        .choices[0]
-        .text.strip()
-    )
 
 
 @backoff.on_exception(

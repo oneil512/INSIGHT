@@ -19,8 +19,14 @@ def boss_agent(
     task_list: List[str],
     index,
     completed_tasks: List[str],
-    no_result_notification: str = ""
+    previous_task,
+    previous_result = None
 ):
+    
+    no_result_notification = ""
+    if not previous_result:
+        no_result_notification = f"Note: Task '{previous_task}' completed but returned no results. Please decide if you should retry. If so, please change something so that you will get a result."
+       
     
     if index.docstore.docs:
         executive_summary = query_knowledge_base(index)
@@ -113,6 +119,7 @@ def worker_agent(
 ) -> str:
     
     context = ""
+    previous_params = ""
     if index.docstore.docs:
         context = query_knowledge_base(
             index,
