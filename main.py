@@ -24,6 +24,8 @@ from utils import (
     process_pubmed_result,
     query_knowledge_base,
     save,
+    handle_python_result,
+    handle_results
 )
 
 logging.getLogger("llama_index").setLevel(logging.WARNING)
@@ -95,138 +97,60 @@ def run(
     print(OBJECTIVE)
 
 
-    prev_iteration_no_result_notification = ""
+    result = []
+    task = ""
 
     while True:
-        # States used in each iteration
-        result_code = None
-        python = False
-        cache_params = None
-        params = None
+        result_is_python = False
 
-        if index.docstore.docs:
-            executive_summary = query_knowledge_base(index)
-        else:
-            executive_summary = "No information gathered yet."
-
-        task_list, thoughts = boss_agent(
+        task_list = boss_agent(
             objective=OBJECTIVE,
             tool_description=tool_description,
             task_list=task_list,
-            executive_summary=executive_summary,
+            index=index,
             completed_tasks=completed_tasks,
-            no_result_notification=prev_iteration_no_result_notification
+            previous_task=task,
+            previous_result=result
         )
 
-        print(Fore.CYAN + "\n*****EXECUTIVE SUMMARY*****\n")
-        print(Fore.CYAN + executive_summary)
+        if not task_list:
+            print(Fore.RED + "TASK LIST EMPTY")
+            break
 
-        print(Fore.CYAN + "\n*****BOSS THOUGHTS*****\n")
-        print(Fore.CYAN + thoughts)
+        print(Fore.WHITE + "\n*****TASK LIST*****\n")
+        for t in task_list:
+            print(t)
 
-        if task_list:
-            print(Fore.WHITE + "\n*****TASK LIST*****\n")
+        task = task_list.popleft()
 
-            for t in task_list:
-                print(t)
+        print(Fore.RED + "\n*****NEXT TASK*****\n")
+        print("task id: ", task_id_counter, "task: ", task)
 
-            task = task_list.popleft()
+        if any(tool in task for tool in TOOLS):
+            result_is_python = True
 
-            context = ""
-            if index.docstore.docs:
-                context = query_knowledge_base(
-                    index,
-                    query=f"Provide as much useful context as possible for this task: {task}",
-                )
+        result = worker_agent(OBJECTIVE, task, index, cache, TOOLS, result_is_python)
+        completed_tasks.append(task)
 
-            if any(tool in task for tool in TOOLS):
-                python = True
+        print(Fore.GREEN + "\n*****TASK RESULT*****\n")
+        print(Fore.GREEN + result)
 
-            if "MYGENE" in task and "MYGENE" in cache:
-                cache_params = cache["MYGENE"]
+        doc_store_task_key = str(task_id_counter) + "_" + task
+        doc_store["tasks"][doc_store_task_key] = {}
+        doc_store["tasks"][doc_store_task_key]["results"] = []
 
-            if "PUBMED" in task and "PUBMED" in cache:
-                cache_params = cache["PUBMED"]
+        if result_is_python:
+            result = handle_python_result(result, cache, task, doc_store, doc_store_task_key)
 
-            print(Fore.RED + "\n*****NEXT TASK*****\n")
-            print("task id: ", task_id_counter, "task: ", task)
+        handle_results(result, index, doc_store, doc_store_task_key, task_id_counter, RESULT_CUTOFF)
 
-            result = worker_agent(OBJECTIVE, task, context, cache_params, python)
-            completed_tasks.append(task)
-            print(Fore.GREEN + "\n*****TASK RESULT*****\n")
-            print(Fore.GREEN + result)
-
-            # If task result was python code
-            if python:
-                results_returned = True
-                result_code = result
-                result = execute_python(result)
-                if (result is not None) and (not result): # Execution complete succesfully, but result was empty
-                    results_returned = False
-                    result_code = "NOTE: Code returned no results\n\n" + result_code
-                    
-                    prev_iteration_no_result_notification = f"Note: Task '{task}' completed but returned no results. Please decide if you should retry. If so, please change something so that you will get a result."
-                    print(Fore.BLUE + f"Task '{task}' completed but returned no results")
-
-                if "MYGENE" in task:
-                    params = get_code_params(
-                        result_code,
-                        preparam_text="mygene.MyGeneInfo()",
-                        postparam_text="gene_results = mg.query(",
-                    )
-                    if results_returned:
-                        cache["MYGENE"].append(f"---\n{params}---\n")
-                    else:
-                        cache["MYGENE"].append(f"---\nNote: This call returned no results\n{params}---\n")
-                    result = process_mygene_result(result)
-
-                if "PUBMED" in task:
-                    params = get_code_params(
-                        result_code,
-                        preparam_text="from Bio import Entrez",
-                        postparam_text="search_handle = Entrez.esearch(",
-                    )
-                    if results_returned:
-                        cache["PUBMED"].append(f"---\n{params}---\n")
-                    else:
-                        cache["PUBMED"].append(f"---\nNote: This call returned no results\n{params}---\n")
-                    result = process_pubmed_result(result)
-
-            if type(result) is not list:
-                result = [result]
-
-            doc_store_key = str(task_id_counter) + "_" + task
-            doc_store["tasks"][doc_store_key] = {}
-            doc_store["tasks"][doc_store_key]["results"] = []
-
-            if result_code:
-                doc_store["tasks"][doc_store_key]["result_code"] = result_code
-
-            for i, r in enumerate(result):
-
-                # We have result, clear out no result notification
-                prev_iteration_no_result_notification = ""
-                r = str(r)[
-                    :RESULT_CUTOFF
-                ]  # Occasionally an enormous result will slow the program to a halt. Not ideal to lose results but putting in place for now.
-                vectorized_data = get_ada_embedding(r)
-                task_id = f"doc_id_{task_id_counter}_{i}"
-                insert_doc_llama_index(index, vectorized_data, task_id, r)
-
-                doc_store["tasks"][doc_store_key]["results"].append(
-                    {
-                        "task_id_counter": task_id_counter,
-                        "vectorized_data": vectorized_data,
-                        "output": r,
-                    }
-                )
-
-            task_id_counter += 1
+        task_id_counter += 1
 
         if task_id_counter > MAX_ITERATIONS:
             break
 
     doc_store["key_results"] = get_key_results(index, OBJECTIVE, top_k=20)
+
     save(
         index,
         doc_store,
@@ -242,6 +166,7 @@ def run(
     end_time = time.time()
     total_time = end_time - start_time
     print(Fore.RED + f"Total run time: {total_time:.2f} seconds")
+
 
 
 ### Set variables here.
