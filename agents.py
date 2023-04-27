@@ -2,11 +2,12 @@ import os
 from ast import literal_eval
 from collections import deque
 from typing import List
+from colorama import Fore
 
 import openai
 
 from config import OPENAI_API_KEY
-from utils import generate_tool_prompt, get_gpt_chat_completion, get_gpt_completion
+from utils import generate_tool_prompt, get_gpt_chat_completion, get_gpt_completion, query_knowledge_base
 
 openai.api_key = OPENAI_API_KEY or os.environ["OPENAI_API_KEY"]
 tools = ["MYGENE", "PUBMED"]
@@ -16,10 +17,20 @@ def boss_agent(
     objective: str,
     tool_description: str,
     task_list: List[str],
+    index,
     completed_tasks: List[str],
-    executive_summary: str = "No tasks completed Yet.",
     no_result_notification: str = ""
 ):
+    
+    if index.docstore.docs:
+        executive_summary = query_knowledge_base(index)
+    else:
+        executive_summary = "No information gathered yet."
+
+    
+    print(Fore.CYAN + "\n*****EXECUTIVE SUMMARY*****\n")
+    print(Fore.CYAN + executive_summary)
+
     
     system_prompt = """You are BossGPT, a responsible and organized agent that is responsible for completing a high level and difficult objective.
 As the boss, your goal is to break the high level objective down into small and managable tasks for your workers. These tasks will be picked up by your worker agents and completed.
@@ -85,16 +96,34 @@ Note: To be sure that TASKS is a valid python list, it should always start with 
 
     # parsed_tasks = parser("Parse the following text so that it is a valid python list. Do not alter the elements in any way.", tasks)
     new_task_list = literal_eval(tasks)
-    return deque(new_task_list), thoughts
+
+    print(Fore.CYAN + "\n*****BOSS THOUGHTS*****\n")
+    print(Fore.CYAN + thoughts)
+
+    return deque(new_task_list)
 
 
 def worker_agent(
     objective: str,
     task: str,
-    context: str,
-    previous_params: str = None,
+    index,
+    cache,
+    TOOLs,
     python: bool = False,
 ) -> str:
+    
+    context = ""
+    if index.docstore.docs:
+        context = query_knowledge_base(
+            index,
+            query=f"Provide as much useful context as possible for this task: {task}",
+        )
+    
+    for tool in TOOLs:
+        if tool in task and tool in cache:
+            previous_params = cache[tool]
+            break
+
     if python:
         prompt = f"""You are an AI who performs one task based on the following objective: {objective}. You will be writing code for your task. Here are the parameters used in the code from previous tasks {previous_params}. Do not use the same parameters and query again; instead use tweak the parameters or query so that you get a slightly different result."""
         prompt += generate_tool_prompt(task)

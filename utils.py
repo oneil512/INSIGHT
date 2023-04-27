@@ -298,6 +298,65 @@ def insert_doc_llama_index(index, embedding, doc_id, metadata):
     index.insert(doc)
 
 
+def handle_python_result(result, cache, task):
+    results_returned = True
+    result_code = result
+    result = execute_python(result)
+    if (result is not None) and (not result): # Execution complete succesfully, but result was empty
+        results_returned = False
+        result_code = "NOTE: Code returned no results\n\n" + result_code
+        
+        prev_iteration_no_result_notification = f"Note: Task '{task}' completed but returned no results. Please decide if you should retry. If so, please change something so that you will get a result."
+        print(Fore.BLUE + f"Task '{task}' completed but returned no results")
+
+    if "MYGENE" in task:
+        params = get_code_params(
+            result_code,
+            preparam_text="mygene.MyGeneInfo()",
+            postparam_text="gene_results = mg.query(",
+        )
+        if results_returned:
+            cache["MYGENE"].append(f"---\n{params}---\n")
+        else:
+            cache["MYGENE"].append(f"---\nNote: This call returned no results\n{params}---\n")
+        result = process_mygene_result(result)
+
+    if "PUBMED" in task:
+        params = get_code_params(
+            result_code,
+            preparam_text="from Bio import Entrez",
+            postparam_text="search_handle = Entrez.esearch(",
+        )
+        if results_returned:
+            cache["PUBMED"].append(f"---\n{params}---\n")
+        else:
+            cache["PUBMED"].append(f"---\nNote: This call returned no results\n{params}---\n")
+        result = process_pubmed_result(result)
+
+    return result, cache, prev_iteration_no_result_notification
+
+
+def handle_results(result, index, doc_store, doc_store_key, task_id_counter, RESULT_CUTOFF):
+    if type(result) is not list:
+        result = [result]
+
+    for i, r in enumerate(result):
+        r = str(r)[
+            :RESULT_CUTOFF
+        ]  # Occasionally an enormous result will slow the program to a halt. Not ideal to lose results but putting in place for now.
+        vectorized_data = get_ada_embedding(r)
+        task_id = f"doc_id_{task_id_counter}_{i}"
+        insert_doc_llama_index(index, vectorized_data, task_id, r)
+
+        doc_store["tasks"][doc_store_key]["results"].append(
+            {
+                "task_id_counter": task_id_counter,
+                "vectorized_data": vectorized_data,
+                "output": r,
+            }
+        )
+
+
 def query_knowledge_base(
     index,
     query="Give a detailed but terse overview of all the information. Start with a high level summary and then go into details. Do not include any further instruction. Do not include filler words. Do not include citation information.",
