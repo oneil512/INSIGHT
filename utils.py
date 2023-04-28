@@ -586,8 +586,6 @@ def save(
                 str(result["vectorized_data"]),
             )
 
-        i += 1
-
 
 def load(path):
     llm_predictor = LLMPredictor(

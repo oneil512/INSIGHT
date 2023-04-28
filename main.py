@@ -147,7 +147,7 @@ def run(
         if task_id_counter > MAX_ITERATIONS:
             break
 
-    doc_store["key_results"] = get_key_results(master_index, OBJECTIVE, top_k=1)
+    doc_store["key_results"] = get_key_results(master_index, OBJECTIVE, top_k=20)
 
     save(
         master_index,
@@ -179,8 +179,8 @@ OBJECTIVE = "Cure breast cancer"
 # Note that state reloading is not backwards compatible. Saved states before this change cannot be reloaded.
 
 # Fresh Run
-#run(OBJECTIVE=OBJECTIVE, MAX_ITERATIONS=MAX_ITERATIONS, TOOLS=TOOLS)
+run(OBJECTIVE=OBJECTIVE, MAX_ITERATIONS=MAX_ITERATIONS, TOOLS=TOOLS)
 
 # Reload state and resume run
 # TOOLS and MAX_ITERATIONS can also be passed in when reloading state.
-run(reload_path="out/Cure breast cancer_2023-04-28_01-01-23")
+#run(reload_path="out/Cure breast cancer_2023-04-28_01-01-23")
