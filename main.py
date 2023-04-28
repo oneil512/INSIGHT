@@ -4,28 +4,20 @@ import os
 import time
 from collections import defaultdict, deque
 
-import llama_index
 from Bio import Entrez
 from colorama import Fore
-from langchain import OpenAI
-from langchain.chat_models import ChatOpenAI
-from llama_index import GPTListIndex, GPTSimpleVectorIndex, LLMPredictor, ServiceContext
 
 from agents import boss_agent, worker_agent
 from config import EMAIL, OPENAI_API_KEY
 from utils import (
-    execute_python,
-    get_ada_embedding,
-    get_code_params,
     get_key_results,
     insert_doc_llama_index,
     load,
-    process_mygene_result,
-    process_pubmed_result,
     query_knowledge_base,
     save,
     handle_python_result,
-    handle_results
+    handle_results,
+    create_index,
 )
 
 logging.getLogger("llama_index").setLevel(logging.WARNING)
@@ -34,13 +26,16 @@ Entrez.email = EMAIL or os.environ["EMAIL"]
 MAX_TOKENS = 4097
 api_key = OPENAI_API_KEY or os.environ["OPENAI_API_KEY"]
 
+indicies = []
+summaries = []
+
 
 def run(
     OBJECTIVE="",
     RESULT_CUTOFF=20000,
     MAX_ITERATIONS=1,
     TOOLS=["MYGENE", "PUBMED"],
-    index=None,
+    master_index=None,
     task_id_counter=1,
     task_list=deque(),
     completed_tasks=[],
@@ -53,7 +48,7 @@ def run(
     if reload_path:
         try:
             (
-                index,
+                master_index,
                 task_id_counter,
                 task_list,
                 completed_tasks,
@@ -68,21 +63,12 @@ def run(
             raise Exception("Cannot reload state.")
 
     else:
-        if not index:
-            llm_predictor = LLMPredictor(
-                llm=OpenAI(
-                    temperature=0,
-                    openai_api_key=api_key,
-                    model_name="text-davinci-003",
-                    max_tokens=2000,
-                )
-            )
-            service_context = ServiceContext.from_defaults(llm_predictor=llm_predictor)
-            index = GPTSimpleVectorIndex([], service_context=service_context)
-
+        if not master_index:
+            master_index = create_index(api_key=api_key)
         current_datetime = current_datetime or str(time.strftime("%Y-%m-%d_%H-%M-%S"))
 
     doc_store = {"tasks": {}}
+
     tool_description_mapping = {
         "PUBMED": """2) Query PubMed API. This is useful for searching biomedical literature and studies on any medical subject. If you wish to make a task to create an API request to the PubMed API then simply say 'PUBMED:' followed by what you would like to search for. Example: 'PUBMED: Find recent developments in HIV research'""",
         "MYGENE": """1) Query mygene API. This is useful for finding information on specific genes, or genes associated with the search query. If you wish to make a task to create an API request to mygene then simply say 'MYGENE:' followed by what you would like to search for. Example: 'MYGENE: look up information on genes that are linked to cancer'""",
@@ -99,6 +85,7 @@ def run(
 
     result = []
     task = ""
+    index = create_index(api_key)
 
     while True:
         result_is_python = False
@@ -107,11 +94,12 @@ def run(
             objective=OBJECTIVE,
             tool_description=tool_description,
             task_list=task_list,
-            index=index,
+            summaries=summaries,
             completed_tasks=completed_tasks,
             previous_task=task,
             previous_result=result
         )
+
 
         if not task_list:
             print(Fore.RED + "TASK LIST EMPTY")
@@ -144,15 +132,25 @@ def run(
 
         handle_results(result, index, doc_store, doc_store_task_key, task_id_counter, RESULT_CUTOFF)
 
+        if index.docstore.docs:
+            query="Give a detailed but terse overview of all the information. Start with a high level summary and then go into details. Do not include any further instruction. Do not include filler words. Include citation information."
+            executive_summary = query_knowledge_base(index, query=query, list_index=False)
+            insert_doc_llama_index(index=master_index, doc_id=str(task_id_counter), metadata=executive_summary)
+            summaries.append(executive_summary)
+            indicies.append(index)
+            doc_store["tasks"][doc_store_task_key]["executive_summary"] = executive_summary
+
+            index = create_index(api_key=api_key)
+
         task_id_counter += 1
 
         if task_id_counter > MAX_ITERATIONS:
             break
 
-    doc_store["key_results"] = get_key_results(index, OBJECTIVE, top_k=20)
+    doc_store["key_results"] = get_key_results(master_index, OBJECTIVE, top_k=20)
 
     save(
-        index,
+        master_index,
         doc_store,
         OBJECTIVE,
         current_datetime,
@@ -185,4 +183,4 @@ run(OBJECTIVE=OBJECTIVE, MAX_ITERATIONS=MAX_ITERATIONS, TOOLS=TOOLS)
 
 # Reload state and resume run
 # TOOLS and MAX_ITERATIONS can also be passed in when reloading state.
-# run(reload_path="out/Cure breast cancer_2023-04-25_16-38-42")
+#run(reload_path="out/Cure breast cancer_2023-04-28_01-01-23")

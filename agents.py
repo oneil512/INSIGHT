@@ -17,7 +17,7 @@ def boss_agent(
     objective: str,
     tool_description: str,
     task_list: List[str],
-    index,
+    summaries: List[str],
     completed_tasks: List[str],
     previous_task,
     previous_result = None
@@ -28,8 +28,8 @@ def boss_agent(
         no_result_notification = f"Note: Task '{previous_task}' completed but returned no results. Please decide if you should retry. If so, please change something so that you will get a result."
        
     
-    if index.docstore.docs:
-        executive_summary = query_knowledge_base(index)
+    if summaries:
+        executive_summary = '\n'.join(summaries)
     else:
         executive_summary = "No information gathered yet."
 

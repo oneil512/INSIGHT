@@ -13,7 +13,7 @@ import openai
 import tiktoken
 from colorama import Fore
 from langchain import OpenAI
-from llama_index import Document, GPTSimpleVectorIndex, LLMPredictor, ServiceContext
+from llama_index import Document, GPTSimpleVectorIndex, LLMPredictor, ServiceContext, GPTListIndex
 from llama_index.indices.composability import ComposableGraph
 
 from api.mygene_api import mygene_api
@@ -42,7 +42,7 @@ def num_tokens_from_string(string: str, encoding_name: str = "gpt2") -> int:
     return num_tokens
 
 
-def get_key_results(index, objective, top_k=50):
+def get_key_results(index, objective, top_k=20):
     """Run final queries over retrieved documents and store in doc_store."""
 
     print(Fore.CYAN + "\n*****COMPILING KEY RESULTS*****\n")
@@ -63,7 +63,7 @@ def get_key_results(index, objective, top_k=50):
         print(Fore.CYAN + f"\nCOMPILING RESULT {query}\n")
         res = None
         try:
-            res = query_knowledge_base(index=index, query=query, top_k=top_k)
+            res = query_knowledge_base(index=index, query=query, list_index=False, top_k=top_k)
         except Exception as e:
             print(f"Exception getting key result {query}, error {e}")
 
@@ -307,7 +307,9 @@ def get_ada_embedding(text):
     ][0]["embedding"]
 
 
-def insert_doc_llama_index(index, embedding, doc_id, metadata):
+def insert_doc_llama_index(index, doc_id, metadata, embedding=None):
+    if not embedding:
+        embedding = get_ada_embedding(metadata)
     doc = Document(text=metadata, embedding=embedding, doc_id=doc_id)
     index.insert(doc)
 
@@ -318,6 +320,17 @@ def handle_python_result(result, cache, task, doc_store, doc_store_task_key):
     doc_store["tasks"][doc_store_task_key]["result_code"] = result
 
     executed_result = execute_python(result)
+
+    if executed_result is None:
+        result = "NOTE: Code did not run succesfully\n\n" + result
+        print(Fore.BLUE + f"Task '{task}' failed. Code {result} did not run succesfully.")
+        if "MYGENE" in task:
+            cache["MYGENE"].append(f"---\nNote: This call did not run succesfully\n{params}---\n")
+        if "PUBMED" in task:
+            cache["PUBMED"].append(f"---\nNote: This call did not run succesfully\n{params}---\n")
+
+        return
+
 
     if (executed_result is not None) and (not executed_result): # Execution complete succesfully, but executed result was empty list
         results_returned = False
@@ -363,7 +376,7 @@ def handle_results(result, index, doc_store, doc_store_key, task_id_counter, RES
         ]  # Occasionally an enormous result will slow the program to a halt. Not ideal to lose results but putting in place for now.
         vectorized_data = get_ada_embedding(r)
         task_id = f"doc_id_{task_id_counter}_{i}"
-        insert_doc_llama_index(index, vectorized_data, task_id, r)
+        insert_doc_llama_index(index=index, doc_id=task_id, metadata=r, embedding=vectorized_data)
 
         doc_store["tasks"][doc_store_key]["results"].append(
             {
@@ -379,12 +392,75 @@ def query_knowledge_base(
     query="Give a detailed but terse overview of all the information. Start with a high level summary and then go into details. Do not include any further instruction. Do not include filler words. Do not include citation information.",
     response_mode="tree_summarize",
     top_k=50,
+    list_index=False
 ):
-    # From llama index docs: Empirically, setting response_mode="tree_summarize" also leads to better summarization results.
-    query_response = index.query(
-        query, similarity_top_k=top_k, response_mode=response_mode
-    )
+    if list_index:
+        query_response = index.query(
+            query, response_mode="default"
+        )
+    else:
+        # From llama index docs: Empirically, setting response_mode="tree_summarize" also leads to better summarization results.
+        query_response = index.query(
+            query, similarity_top_k=top_k, response_mode=response_mode
+        )
     return query_response.response
+
+
+def create_index(api_key,summaries=[], temperature=0.0, model_name="text-davinci-003", max_tokens=2000):
+    llm_predictor = LLMPredictor(
+        llm=OpenAI(
+            temperature=temperature,
+            openai_api_key=api_key,
+            model_name=model_name,
+            max_tokens=max_tokens,
+            )
+    )
+    documents = []
+    for i, summary in enumerate(summaries):
+        documents.append(Document(text=summary, doc_id=str(i)))
+
+    service_context = ServiceContext.from_defaults(llm_predictor=llm_predictor)
+    return GPTSimpleVectorIndex(documents, service_context=service_context)
+
+
+def create_graph_index(api_key, indicies=[], summaries=[], temperature=0.0, model_name="text-davinci-003", max_tokens=2000):
+    llm_predictor = LLMPredictor(
+        llm=OpenAI(
+            temperature=temperature,
+            openai_api_key=api_key,
+            model_name=model_name,
+            max_tokens=max_tokens,
+            )
+    )
+    service_context = ServiceContext.from_defaults(llm_predictor=llm_predictor)
+
+
+    graph = ComposableGraph.from_indices(
+        GPTListIndex,
+        indicies,
+        index_summaries=summaries,
+        service_context=service_context
+    )
+
+    return graph
+
+
+def create_list_index(api_key, summaries=[], temperature=0.0, model_name="text-davinci-003", max_tokens=2000):
+    llm_predictor = LLMPredictor(
+        llm=OpenAI(
+            temperature=temperature,
+            openai_api_key=api_key,
+            model_name=model_name,
+            max_tokens=max_tokens,
+            )
+    )
+    service_context = ServiceContext.from_defaults(llm_predictor=llm_predictor)
+    documents = []
+    for i, summary in enumerate(summaries):
+        documents.append(Document(text=summary, doc_id=str(i)))
+        
+    index = GPTListIndex.from_documents(documents, service_context=service_context)
+    return index
 
 
 @backoff.on_exception(
@@ -487,15 +563,21 @@ def save(
             write_file(key_findings_path, content, mode="a+")
 
     for task, doc in doc_store["tasks"].items():
+            
+
         doc_path = os.path.join(path, task)
         make_dir(doc_path)
         result_path = os.path.join(doc_path, "results")
         make_dir(result_path)
 
+        if "executive_summary" in doc:
+            write_file(os.path.join(result_path, "executive_summary.txt"), doc["executive_summary"])
         if "result_code" in doc:
             write_file(os.path.join(result_path, "api_call.txt"), doc["result_code"])
+        
 
         for i, result in enumerate(doc["results"]):
+
             result_path_i = os.path.join(result_path, str(i))
             make_dir(result_path_i)
             write_file(os.path.join(result_path_i, "output.txt"), result["output"])
