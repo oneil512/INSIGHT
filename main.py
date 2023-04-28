@@ -4,31 +4,20 @@ import os
 import time
 from collections import defaultdict, deque
 
-import llama_index
 from Bio import Entrez
 from colorama import Fore
-from langchain import OpenAI
-from langchain.chat_models import ChatOpenAI
-from llama_index import GPTListIndex, GPTSimpleVectorIndex, LLMPredictor, ServiceContext
 
 from agents import boss_agent, worker_agent
 from config import EMAIL, OPENAI_API_KEY
 from utils import (
-    execute_python,
-    get_ada_embedding,
-    get_code_params,
     get_key_results,
     insert_doc_llama_index,
     load,
-    process_mygene_result,
-    process_pubmed_result,
     query_knowledge_base,
     save,
     handle_python_result,
     handle_results,
     create_index,
-    create_graph_index,
-    create_list_index
 )
 
 logging.getLogger("llama_index").setLevel(logging.WARNING)
@@ -46,7 +35,7 @@ def run(
     RESULT_CUTOFF=20000,
     MAX_ITERATIONS=1,
     TOOLS=["MYGENE", "PUBMED"],
-    index=None,
+    master_index=None,
     task_id_counter=1,
     task_list=deque(),
     completed_tasks=[],
@@ -59,7 +48,7 @@ def run(
     if reload_path:
         try:
             (
-                index,
+                master_index,
                 task_id_counter,
                 task_list,
                 completed_tasks,
@@ -74,9 +63,7 @@ def run(
             raise Exception("Cannot reload state.")
 
     else:
-        if not index:
-            index = create_index(api_key)
-            list_index = create_list_index(api_key=api_key)
+        if not master_index:
             master_index = create_index(api_key=api_key)
         current_datetime = current_datetime or str(time.strftime("%Y-%m-%d_%H-%M-%S"))
 
@@ -98,6 +85,7 @@ def run(
 
     result = []
     task = ""
+    index = create_index(api_key)
 
     while True:
         result_is_python = False
@@ -159,7 +147,7 @@ def run(
         if task_id_counter > MAX_ITERATIONS:
             break
 
-    doc_store["key_results"] = get_key_results(master_index, OBJECTIVE, top_k=20)
+    doc_store["key_results"] = get_key_results(master_index, OBJECTIVE, top_k=1)
 
     save(
         master_index,
@@ -182,7 +170,7 @@ def run(
 ### Set variables here.
 
 TOOLS = ["MYGENE", "PUBMED"]
-MAX_ITERATIONS = 2
+MAX_ITERATIONS = 1
 OBJECTIVE = "Cure breast cancer"
 
 
@@ -191,8 +179,8 @@ OBJECTIVE = "Cure breast cancer"
 # Note that state reloading is not backwards compatible. Saved states before this change cannot be reloaded.
 
 # Fresh Run
-run(OBJECTIVE=OBJECTIVE, MAX_ITERATIONS=MAX_ITERATIONS, TOOLS=TOOLS)
+#run(OBJECTIVE=OBJECTIVE, MAX_ITERATIONS=MAX_ITERATIONS, TOOLS=TOOLS)
 
 # Reload state and resume run
 # TOOLS and MAX_ITERATIONS can also be passed in when reloading state.
-# run(reload_path="out/Cure breast cancer_2023-04-25_16-38-42")
+run(reload_path="out/Cure breast cancer_2023-04-28_01-01-23")

@@ -5,6 +5,8 @@ API RULES
         from Bio import Entrez
     - Every code block must end by assigning the output to a variable called 'ret'
     - Only use the fields you see in the examples. Do not create any of your own fields
+    - Do not change the variable names.
+    - The only thing you should change is the query_term, retmax, and retstart
 
 API PARAMETERS
     - query_term: What is being searched

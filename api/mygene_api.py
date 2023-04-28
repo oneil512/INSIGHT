@@ -8,6 +8,8 @@ API RULES
     - Forward slashes in the query must by escaped with a backwards slash:
         Instead of query_term="abc/123" do query_term="abc\/123"
     - Only use the fields you see in the examples. Do not create any of your own fields
+    - Do not change the variable names.
+    - The only thing you should change is the query_term, size, and from_
 
 API PARAMETERS
     - size: How many genes you will get back
