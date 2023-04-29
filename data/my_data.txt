@@ -1,0 +1,20 @@
+Here is some sample data
+
+here is some more
+
+Data can have arbitrary human readable format
+
+Like this
+gene name : abc
+
+or this
+{"important info": "42", "disease x": "information about x"}
+
+or this
+a,b,c
+stuff,more stuff, even more stuff
+.
+.
+.
+
+If you are able to read and understand the data, INSIGHT will be able to as well.

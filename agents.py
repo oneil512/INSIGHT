@@ -19,12 +19,12 @@ def boss_agent(
     task_list: List[str],
     summaries: List[str],
     completed_tasks: List[str],
-    previous_task,
+    previous_task="",
     previous_result = None
 ):
     
     no_result_notification = ""
-    if not previous_result:
+    if not previous_result and previous_task:
         no_result_notification = f"Note: Task '{previous_task}' completed but returned no results. Please decide if you should retry. If so, please change something so that you will get a result."
        
     
@@ -114,24 +114,29 @@ def worker_agent(
     task: str,
     index,
     cache,
-    TOOLs,
-    python: bool = False,
-) -> str:
+    TOOLS,
+):
     
+    result_is_python = False
     context = ""
     previous_params = ""
+
     if index.docstore.docs:
         context = query_knowledge_base(
             index,
             query=f"Provide as much useful context as possible for this task: {task}",
         )
+
     
-    for tool in TOOLs:
+    if any(tool in task for tool in TOOLS):
+        result_is_python = True
+    
+    for tool in TOOLS:
         if tool in task and tool in cache:
             previous_params = cache[tool]
             break
 
-    if python:
+    if result_is_python:
         prompt = f"""You are an AI who performs one task based on the following objective: {objective}. You will be writing code for your task. Here are the parameters used in the code from previous tasks {previous_params}. Do not use the same parameters and query again; instead use tweak the parameters or query so that you get a slightly different result."""
         prompt += generate_tool_prompt(task)
     else:
@@ -141,7 +146,7 @@ def worker_agent(
 
     response = get_gpt_completion(prompt, engine="text-davinci-003", temp=0.0)
 
-    return response
+    return response, result_is_python
 
 
 def data_cleaning_agent(result: str, objective: str) -> str:
