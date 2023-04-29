@@ -211,20 +211,22 @@ def run(
 
 
 
-### Set variables here.
+if __name__ == "__main__":
 
-TOOLS = ["MYGENE", "PUBMED"]
-MAX_ITERATIONS = 1
-OBJECTIVE = "Cure breast cancer"
-my_data_path = "data/my_data.txt" # Add your own data. Can be any human readable format (text, csv, json, etc)
+    ### Set variables here.
+
+    TOOLS = ["MYGENE", "PUBMED"]
+    MAX_ITERATIONS = 1
+    OBJECTIVE = "Cure breast cancer"
+    my_data_path = "data/my_data.txt" # Add your own data. Can be any human readable format (text, csv, json, etc)
 
 
-# If you would like to reload a previous state, comment out run(OBJECTIVE=OBJECTIVE, MAX_ITERATIONS=MAX_ITERATIONS, TOOLS=TOOLS) and uncomment #run(reload_path="out/Cure breast cancer_2023-04-25_16-38-42")
-# Then put your path in to your saved state.
+    # If you would like to reload a previous state, comment out run(OBJECTIVE=OBJECTIVE, MAX_ITERATIONS=MAX_ITERATIONS, TOOLS=TOOLS) and uncomment #run(reload_path="out/Cure breast cancer_2023-04-25_16-38-42")
+    # Then put your path in to your saved state.
 
-# New Run
-run(api_key=api_key, OBJECTIVE=OBJECTIVE, MAX_ITERATIONS=MAX_ITERATIONS, TOOLS=TOOLS) #my_data_path=my_data_path
+    # New Run
+    run(api_key=api_key, OBJECTIVE=OBJECTIVE, MAX_ITERATIONS=MAX_ITERATIONS, TOOLS=TOOLS) #my_data_path=my_data_path
 
-# Reload state and resume run
-# TOOLS and MAX_ITERATIONS can also be passed in when reloading state.
-#run(api_key=api_key, reload_path="out/Cure breast cancer_2023-04-29_15-13-10")
+    # Reload state and resume run
+    # TOOLS and MAX_ITERATIONS can also be passed in when reloading state.
+    #run(api_key=api_key, reload_path="out/Cure breast cancer_2023-04-29_15-13-10")
