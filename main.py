@@ -18,6 +18,7 @@ from utils import (
     handle_python_result,
     handle_results,
     create_index,
+    read_file
 )
 
 logging.getLogger("llama_index").setLevel(logging.WARNING)
@@ -69,7 +70,7 @@ def run_(
     print(Fore.RED + "\n*****NEXT TASK*****\n")
     print("task id: ", task_id_counter, "task: ", task)
 
-    result, result_is_python = worker_agent(OBJECTIVE, task, index, cache, TOOLS)
+    result, result_is_python = worker_agent(OBJECTIVE, task, master_index, cache, TOOLS)
     completed_tasks.append(task)
 
     print(Fore.GREEN + "\n*****TASK RESULT*****\n")
@@ -85,9 +86,7 @@ def run_(
     handle_results(result, index, doc_store, doc_store_task_key, task_id_counter, RESULT_CUTOFF)
 
     if index.docstore.docs:
-        query="Give a detailed but terse overview of all the information. Start with a high level summary and then go into details. Do not include any further instruction. Do not include filler words. Include citation information."
-        
-        executive_summary = query_knowledge_base(index, query=query, list_index=False)
+        executive_summary = query_knowledge_base(index, list_index=False)
         insert_doc_llama_index(index=master_index, doc_id=str(task_id_counter), metadata=executive_summary)
         doc_store["tasks"][doc_store_task_key]["executive_summary"] = executive_summary
         summaries.append(executive_summary)
@@ -111,6 +110,7 @@ def run(
     cache=defaultdict(list),
     current_datetime="",
     reload_path="",
+    my_data_path="",
 ):
     start_time = time.time()
     reload_count = 0
@@ -137,6 +137,16 @@ def run(
         if not master_index:
             master_index = create_index(api_key=api_key)
         current_datetime = current_datetime or str(time.strftime("%Y-%m-%d_%H-%M-%S"))
+
+    if my_data_path:
+        my_data = read_file(my_data_path)
+
+        temp_index = create_index(api_key=api_key)
+        insert_doc_llama_index(temp_index, metadata=my_data, doc_id="my_data")
+        executive_summary = query_knowledge_base(temp_index, list_index=False)
+
+        insert_doc_llama_index(index=master_index, doc_id="my_data", metadata=executive_summary)
+        summaries.append(executive_summary)
 
     doc_store = {"tasks": {}}
 
@@ -206,13 +216,14 @@ def run(
 TOOLS = ["MYGENE", "PUBMED"]
 MAX_ITERATIONS = 1
 OBJECTIVE = "Cure breast cancer"
+my_data_path = "data/my_data.txt" # Add your own data. Can be any human readable format (text, csv, json, etc)
 
 
 # If you would like to reload a previous state, comment out run(OBJECTIVE=OBJECTIVE, MAX_ITERATIONS=MAX_ITERATIONS, TOOLS=TOOLS) and uncomment #run(reload_path="out/Cure breast cancer_2023-04-25_16-38-42")
 # Then put your path in to your saved state.
 
 # New Run
-run(api_key=api_key, OBJECTIVE=OBJECTIVE, MAX_ITERATIONS=MAX_ITERATIONS, TOOLS=TOOLS)
+run(api_key=api_key, OBJECTIVE=OBJECTIVE, MAX_ITERATIONS=MAX_ITERATIONS, TOOLS=TOOLS) #my_data_path=my_data_path
 
 # Reload state and resume run
 # TOOLS and MAX_ITERATIONS can also be passed in when reloading state.

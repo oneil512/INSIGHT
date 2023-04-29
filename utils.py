@@ -55,13 +55,13 @@ def get_key_results(index, objective, top_k=20):
     key_results = []
 
     queries = [
-        "Give a brief high level summary of all the data. Cite your sources with the citation information.",
-        "Briefly list all the main points that the data covers. Cite your sources with the citation information.",
-        "Give all of the key insights about the data. Cite your sources with the citation information.",
+        "Give a brief high level summary of all the data. Cite your sources with the citation information. Do not make up citation information.",
+        "Briefly list all the main points that the data covers. Cite your sources with the citation information. Do not make up citation information.",
+        "Give all of the key insights about the data. Cite your sources with the citation information. Do not make up citation information.",
         "Generate several creative hypotheses given the data.",
         "What are some high level research directions to explore further given the data?",
-        "Describe the key findings in great detail. Do not include filler words. Cite your sources with the citation information.",
-        f"Do your best to answer the objective: {objective} given the information. Cite your sources with the citation information.",
+        "Describe the key findings in great detail. Do not include filler words. Cite your sources with the citation information. Do not make up citation information.",
+        f"Do your best to answer the objective: {objective} given the information. Cite your sources with the citation information. Do not make up citation information.",
     ]
 
     for query in queries:
@@ -298,7 +298,7 @@ def get_ada_embedding(text):
     ada_embedding_max_size = 8191
     text = text.replace("\n", " ")
 
-    if len(text) > ada_embedding_max_size:
+    if num_tokens_from_string(text) > ada_embedding_max_size:
         # There must be a better way to do this.
         text = text[:ada_embedding_max_size]
     return openai.Embedding.create(input=[text], model="text-embedding-ada-002")[
@@ -392,7 +392,7 @@ def handle_results(result, index, doc_store, doc_store_key, task_id_counter, RES
 
 def query_knowledge_base(
     index,
-    query="Give a detailed but terse overview of all the information. Start with a high level summary and then go into details. Do not include any further instruction. Do not include filler words. Do not include citation information.",
+    query="Give a detailed but terse overview of all the information. Start with a high level summary and then go into details. Do not include any further instruction. Do not include filler words. Include citation information if it is present. Do not make up citation information.",
     response_mode="tree_summarize",
     top_k=50,
     list_index=False
@@ -523,6 +523,16 @@ def make_dir(path):
 def write_file(path, contents, mode="w"):
     with open(path, mode) as f:
         f.write(contents)
+
+
+def read_file(path, mode="r"):
+    with open(path, mode) as f:
+        contents = f.read()
+
+    if not contents:
+        print(f"WARNING: file {path} empty")
+
+    return contents
 
 
 def save(
