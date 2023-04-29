@@ -104,11 +104,8 @@ def process_mygene_result(result):
     processed_result = []
 
     # Each result will be split into 2 documents: summary and pathway
-    for res in result:
-        json_data = res
+    for json_data in result:
 
-        _id = json_data.get("_id")
-        _version = json_data.get("_version")
         name = json_data.get("name")
         refseq_genomic = json_data.get("refseq", {}).get("genomic", [])
         refseq_rna = json_data.get("refseq", {}).get("rna", [])
@@ -232,13 +229,10 @@ def process_pubmed_result(result):
             if doi.get("EIdType") == "doi":
                 res_ += f"{doi.text}\n"
 
-        processed_result.append(res_)
+        if res_:
+            processed_result.append(res_)
 
     return processed_result
-
-
-def prune_gene_results(res):
-    pass
 
 
 def get_code_params(code: str, preparam_text: str, postparam_text: str):
@@ -293,7 +287,7 @@ Here is the {api_name} documentation
 {api_info}
 ---
 
-The example doesn't have to be followed exactly. You should change it to fit your specific task.
+You should change the parameters to fit your specific task.
 
         """.strip()
 
@@ -320,11 +314,14 @@ def insert_doc_llama_index(index, doc_id, metadata, embedding=None):
 
 
 def handle_python_result(result, cache, task, doc_store, doc_store_task_key):
-    
+
     results_returned = True
     doc_store["tasks"][doc_store_task_key]["result_code"] = result
 
     executed_result = execute_python(result)
+
+    if type(executed_result) is list:
+        executed_result = list(filter(lambda x : x, executed_result))
 
     if executed_result is None:
         result = "NOTE: Code did not run succesfully\n\n" + result
@@ -342,6 +339,7 @@ def handle_python_result(result, cache, task, doc_store, doc_store_task_key):
         result = "NOTE: Code returned no results\n\n" + result
         
         print(Fore.BLUE + f"\nTask '{task}' completed but returned no results")
+
 
     if "MYGENE" in task:
         params = get_code_params(
