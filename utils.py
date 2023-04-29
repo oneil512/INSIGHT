@@ -45,6 +45,11 @@ def num_tokens_from_string(string: str, encoding_name: str = "gpt2") -> int:
 def get_key_results(index, objective, top_k=20):
     """Run final queries over retrieved documents and store in doc_store."""
 
+    if not index.docstore.docs:
+        print(Fore.RED + "\n! NO TASKS RETURNED RESULTS. PLEASE TWEAK YOUR OBJECTIVE AND CHECK SPELLING. !\n")
+        return []
+
+
     print(Fore.CYAN + "\n*****COMPILING KEY RESULTS*****\n")
 
     key_results = []
@@ -336,7 +341,7 @@ def handle_python_result(result, cache, task, doc_store, doc_store_task_key):
         results_returned = False
         result = "NOTE: Code returned no results\n\n" + result
         
-        print(Fore.BLUE + f"Task '{task}' completed but returned no results")
+        print(Fore.BLUE + f"\nTask '{task}' completed but returned no results")
 
     if "MYGENE" in task:
         params = get_code_params(
@@ -394,6 +399,10 @@ def query_knowledge_base(
     top_k=50,
     list_index=False
 ):
+    if not index.docstore.docs:
+        print(Fore.RED + "NO INFORMATION IN LLAMA INDEX")
+        return
+    
     if list_index:
         query_response = index.query(
             query, response_mode="default"
