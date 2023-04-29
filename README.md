@@ -2,7 +2,14 @@
 
 Insight is an autonomous AI that can do medical research. It has a boss agent that takes an objective and an executive summary of the tasks completed already and their results and creates a task list. A worker agent picks up a task from the list and completes it, saving the results to llama index. The boss gets informed of the results and changes/reprioritizes the task list. The workers can call into the pubmed and mygene APIs (more to come). The workers also get context from llama index to help complete their tasks.
 
-Please reach out to me or contribute if this interests you :)
+You can reload and continue runs by following the instructions at the bottom of `main.py`
+
+You can also load in your own data that will be used along side the data INSIGHT finds! Just pass a path to the data in `main.py`
+
+You can also load your llama Index database and talk to it, asking arbitrary questions about your data, by running `talk_to_index.py`
+You will have to specify the path to your index in the bottom of the file. See the bottom of `talk_to_index.py` for an example.
+
+Please reach out to me or contribute if this interests you :) My email is oneil512@umn.edu
 
 
 ```mermaid
@@ -47,6 +54,8 @@ graph TB;
 3. run `pip install -r requirements.txt`
 4. run `python main.py`
 
+You can specify your own parameters like what tools to use, what objective to use, how many iterations to run, and load your own data in by passing a path to the file. See the bottom of `main.py`
+
 ## Output
 
 The program saves the result from every task and adds it to the output directory `out`
@@ -77,7 +86,7 @@ Here is an example output structure
     │   │   │   └── Vector Embedding of Result
     │   │   ├── .
     │   │   ├── .
-    │   │   ├── .
+    │   │   ├── Summary of task results
     │   │   └── API Call (If task was an API call)
     │   ├── Task 2
     │   ├── .
@@ -91,13 +100,3 @@ Here is an example output structure
 BE MINDFUL OF EXPENSES!!
 
 Currently an execution for a few minutes should cost no more than a few cents. This will go up if you use a more powerful model like GPT-4
-
-NOTE:
-
-At the bottom of the main.py loop there is a break statement to safeguard against the loop running forever.
-
-
-```py
-if task_id_counter > MAX_ITERATIONS:
-    break
-```
