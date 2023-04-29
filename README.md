@@ -37,6 +37,11 @@ graph TB;
     Executor --> Execution[Execution Result];
 
     Execution --> Llama;
+
+    Llama <--> TalkToIndex[Talk To Index];
+
+    User{{User}} -->|Query| TalkToIndex;
+    TalkToIndex -->|Result| User;
 ```
 
 ## Getting Started
