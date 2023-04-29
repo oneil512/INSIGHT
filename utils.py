@@ -535,6 +535,7 @@ def save(
     completed_tasks,
     cache,
     reload_count,
+    summaries,
 ):
     # Make basepath.
     path = os.path.join("./out", OBJECTIVE + "_" + current_datetime)
@@ -545,6 +546,7 @@ def save(
 
     # Save program state.
     state = {
+        "summaries": summaries,
         "reload_count": reload_count,
         "task_id_counter": task_id_counter,
         "task_list": list(task_list),
@@ -620,6 +622,7 @@ def load(path):
                 cache = defaultdict(list, json_data["cache"])
                 current_datetime = json_data["current_datetime"]
                 objective = json_data["objective"]
+                summaries = json_data["summaries"]
             except KeyError as e:
                 raise Exception(
                     f"Missing key '{e.args[0]}' in JSON file at path '{state_path}'"
@@ -634,4 +637,5 @@ def load(path):
         current_datetime,
         objective,
         reload_count,
+        summaries,
     )
