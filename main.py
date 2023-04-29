@@ -176,9 +176,8 @@ OBJECTIVE = "Cure breast cancer"
 
 # If you would like to reload a previous state, comment out run(OBJECTIVE=OBJECTIVE, MAX_ITERATIONS=MAX_ITERATIONS, TOOLS=TOOLS) and uncomment #run(reload_path="out/Cure breast cancer_2023-04-25_16-38-42")
 # Then put your path in to your saved state.
-# Note that state reloading is not backwards compatible. Saved states before this change cannot be reloaded.
 
-# Fresh Run
+# New Run
 run(OBJECTIVE=OBJECTIVE, MAX_ITERATIONS=MAX_ITERATIONS, TOOLS=TOOLS)
 
 # Reload state and resume run
