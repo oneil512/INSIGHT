@@ -171,7 +171,7 @@ def run(
 
 TOOLS = ["MYGENE", "PUBMED"]
 MAX_ITERATIONS = 1
-OBJECTIVE = "Research possible connections to arrythmia and deafness."
+OBJECTIVE = "Cure breast cancer"
 
 
 # If you would like to reload a previous state, comment out run(OBJECTIVE=OBJECTIVE, MAX_ITERATIONS=MAX_ITERATIONS, TOOLS=TOOLS) and uncomment #run(reload_path="out/Cure breast cancer_2023-04-25_16-38-42")
