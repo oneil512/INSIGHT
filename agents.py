@@ -34,11 +34,11 @@ def boss_agent(
         executive_summary = "No information gathered yet."
 
     
-    print(Fore.CYAN + "\n*****EXECUTIVE SUMMARY*****\n")
+    print(Fore.CYAN + "\033[1m\n*****EXECUTIVE SUMMARY*****\n\033[0m")
     print(Fore.CYAN + executive_summary)
 
     
-    system_prompt = """You are BossGPT, a responsible and organized agent that is responsible for completing a high level and difficult objective.
+    system_prompt = f"""You are BossGPT, a responsible and organized agent that is responsible for completing a high level and difficult objective.
 As the boss, your goal is to break the high level objective down into small and managable tasks for your workers. These tasks will be picked up by your worker agents and completed.
 You will also get an executive summary of what your workers have accomplished so far. Use the summary to make decisions about what tasks to do next, what tasks to get rid of, and to reprioritize tasks.
 The highest priority task will be at the top of the task list.
@@ -51,15 +51,18 @@ Tasks should be a simple python array with strings as elements. Priority is only
 
 After you have finished generating your task array, cease output.
 
+TOOLS
+{tool_description}
+
 ===
 
 Your responses should in this format:
 
 THOUGHTS
-{Reason about what tasks to add, change, delete, or reprioritize given your objective and all the information you have}
+(Reason about what tasks to add, change, delete, or reprioritize given your objective and all the information you have)
 
 TASKS
-{Python array of tasks}
+(Python array of tasks)
 
 """.strip()
 
@@ -67,7 +70,6 @@ TASKS
 Here is your objective: {objective}
 Here is the current task list: {task_list}
 Here are the tasks that have been complete thus far: {completed_tasks}
-Here are the tools you have access to: {tool_description}
 Here is an executive summary of the information gathered so far: {executive_summary}
 {no_result_notification}
 Note: If a task has already been completed, do not write that same task again in the task list. If you would like a worker to continue or redo a task, be sure to word it a little differently so you don't get the same result.
@@ -103,7 +105,7 @@ Note: To be sure that TASKS is a valid python list, it should always start with 
     # parsed_tasks = parser("Parse the following text so that it is a valid python list. Do not alter the elements in any way.", tasks)
     new_task_list = literal_eval(tasks)
 
-    print(Fore.CYAN + "\n*****BOSS THOUGHTS*****\n")
+    print(Fore.CYAN + "\033[1m\n*****BOSS THOUGHTS*****\n\033[0m")
     print(Fore.CYAN + thoughts)
 
     return deque(new_task_list)
