@@ -46,11 +46,11 @@ def get_key_results(index, objective, top_k=20):
     """Run final queries over retrieved documents and store in doc_store."""
 
     if not index.docstore.docs:
-        print(Fore.RED + "\n! NO TASKS RETURNED RESULTS. PLEASE TWEAK YOUR OBJECTIVE AND CHECK SPELLING. !\n")
+        print(Fore.RED + "\033[1m\n! WARNING: NO TASKS RETURNED RESULTS. PLEASE TWEAK YOUR OBJECTIVE AND CHECK SPELLING. !\n\033[0m")
         return []
 
 
-    print(Fore.CYAN + "\n*****COMPILING KEY RESULTS*****\n")
+    print(Fore.CYAN + "\033[1m\n*****COMPILING KEY RESULTS*****\n\033[0m")
 
     key_results = []
 
@@ -114,6 +114,7 @@ def process_mygene_result(result):
         type_of_gene = json_data.get("type_of_gene")
         pos = json_data.get("genomic_pos_hg19")
         summary = json_data.get("summary")
+        generif = json_data.get("generif")
 
         output_summary = ""
         # Summary
@@ -133,6 +134,19 @@ def process_mygene_result(result):
             output_summary += f"Position: {pos}\n"
         if summary:
             output_summary += f"Summary of {name}: {summary}\n"
+        else:
+            # If not summary, use generifs.
+            if generif:
+                # Take 20 rifs max. Some genes have hundreds of rifs and the results size explodes.
+                for rif in generif[:20]:
+                    pubmed = rif.get("pubmed")
+                    text = rif.get("text")
+
+                    if text:
+                        output_summary += text
+
+                        if pubmed:
+                            output_summary += f" Pubmed ID: {pubmed}"
 
         output_summary = output_summary.strip()
 

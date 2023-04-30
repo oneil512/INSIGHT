@@ -218,4 +218,6 @@ if __name__ == "__main__":
     print(Fore.LIGHTMAGENTA_EX + f"\033[1m{title_art}\033[0m")
 
     objective, tool_flags, iterations, reload_path, my_data_path = prompt_user()
-    run(api_key=api_key, OBJECTIVE=objective, MAX_ITERATIONS=iterations, TOOLS=list(tool_flags.keys()), my_data_path=my_data_path, reload_path=reload_path)
+    tools = [key for key, value in tool_flags.items() if value]
+    
+    run(api_key=api_key, OBJECTIVE=objective, MAX_ITERATIONS=iterations, TOOLS=tools, my_data_path=my_data_path, reload_path=reload_path)
