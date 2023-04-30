@@ -5,10 +5,12 @@ import time
 from collections import defaultdict, deque
 
 from Bio import Entrez
-from colorama import Fore
+from colorama import Fore, Style
+from pyfiglet import Figlet
 
 from agents import boss_agent, worker_agent
 from config import EMAIL, OPENAI_API_KEY
+from interface import prompt_user
 from utils import (
     get_key_results,
     insert_doc_llama_index,
@@ -61,19 +63,19 @@ def run_(
         print(Fore.RED + "TASK LIST EMPTY")
         return
 
-    print(Fore.WHITE + "\n*****TASK LIST*****\n")
+    print(Fore.WHITE + "\033[1m\n*****TASK LIST*****\n\033[0m")
     for t in task_list:
         print(t)
 
     task = task_list.popleft()
 
-    print(Fore.RED + "\n*****NEXT TASK*****\n")
+    print(Fore.RED + "\033[1m\n*****NEXT TASK*****\n\033[0m")
     print("task id: ", task_id_counter, "task: ", task)
 
     result, result_is_python = worker_agent(OBJECTIVE, task, master_index, cache, TOOLS)
     completed_tasks.append(task)
 
-    print(Fore.GREEN + "\n*****TASK RESULT*****\n")
+    print(Fore.GREEN + "\033[1m\n*****TASK RESULT*****\n\033[0m")
     print(Fore.GREEN + result)
 
     doc_store_task_key = str(task_id_counter) + "_" + task
@@ -160,7 +162,7 @@ def run(
     for tool in TOOLS:
         tool_description += f"{tool_description_mapping[tool]}\n"
 
-    print(Fore.CYAN, "\n*****OBJECTIVE*****\n")
+    print(Fore.CYAN, "\033[1m\n*****OBJECTIVE*****\n\033[0m")
     print(OBJECTIVE)
 
 
@@ -210,23 +212,10 @@ def run(
     print(Fore.RED + f"Total run time: {total_time:.2f} seconds")
 
 
-
 if __name__ == "__main__":
+    fig = Figlet(font='slant')
+    title_art = fig.renderText("INSIGHT")
+    print(Fore.LIGHTMAGENTA_EX + f"\033[1m{title_art}\033[0m")
 
-    ### Set variables here.
-
-    TOOLS = ["MYGENE", "PUBMED"]
-    MAX_ITERATIONS = 1
-    OBJECTIVE = "Cure breast cancer"
-    my_data_path = "data/my_data.txt" # Add your own data. Can be any human readable format (text, csv, json, etc)
-
-
-    # If you would like to reload a previous state, comment out run(OBJECTIVE=OBJECTIVE, MAX_ITERATIONS=MAX_ITERATIONS, TOOLS=TOOLS) and uncomment #run(reload_path="out/Cure breast cancer_2023-04-25_16-38-42")
-    # Then put your path in to your saved state.
-
-    # New Run
-    run(api_key=api_key, OBJECTIVE=OBJECTIVE, MAX_ITERATIONS=MAX_ITERATIONS, TOOLS=TOOLS) #my_data_path=my_data_path
-
-    # Reload state and resume run
-    # TOOLS and MAX_ITERATIONS can also be passed in when reloading state.
-    #run(api_key=api_key, reload_path="out/Cure breast cancer_2023-04-29_15-13-10")
+    objective, tool_flags, iterations, reload_path, my_data_path = prompt_user()
+    run(api_key=api_key, OBJECTIVE=objective, MAX_ITERATIONS=iterations, TOOLS=list(tool_flags.keys()), my_data_path=my_data_path, reload_path=reload_path)
