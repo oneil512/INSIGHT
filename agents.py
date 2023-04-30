@@ -69,6 +69,7 @@ TASKS
     user_prompt = f"""
 Here is your objective: {objective}
 Here is the current task list: {task_list}
+Here are the only tools you have access to: {tool_description}
 Here are the tasks that have been complete thus far: {completed_tasks}
 Here is an executive summary of the information gathered so far: {executive_summary}
 {no_result_notification}
