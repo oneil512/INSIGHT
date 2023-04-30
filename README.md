@@ -2,9 +2,7 @@
 
 Insight is an autonomous AI that can do medical research. It has a boss agent that takes an objective and an executive summary of the tasks completed already and their results and creates a task list. A worker agent picks up a task from the list and completes it, saving the results to llama index. The boss gets informed of the results and changes/reprioritizes the task list. The workers can call into the pubmed and mygene APIs (more to come). The workers also get context from llama index to help complete their tasks.
 
-You can reload and continue runs by following the instructions at the bottom of `main.py`
-
-You can also load in your own data that will be used along side the data INSIGHT finds! Just pass a path to the data in `main.py`
+INSIGHT can also reload and continue runs, and also load any human readable data file and use it along side the other findings!
 
 You can also load your llama Index database and talk to it, asking arbitrary questions about your data, by running `talk_to_index.py`
 You will have to specify the path to your index in the bottom of the file. See the bottom of `talk_to_index.py` for an example.
@@ -59,7 +57,6 @@ graph TB;
 3. run `pip install -r requirements.txt`
 4. run `python main.py`
 
-You can specify your own parameters like what tools to use, what objective to use, how many iterations to run, and load your own data in by passing a path to the file. See the bottom of `main.py`
 
 ## Output
 
