@@ -1,24 +1,30 @@
 from colorama import Fore
 import os
+import json
 
-def parse_objective(s):
-    # check if s is a string
-    if not isinstance(s, str):
-        raise ValueError("Input must be a string")
+def get_objective(path):
+    state_file_path = os.path.join(path, "state.json")
 
-    # find the locations of "out/" and "_20"
-    start = s.find("out/")
-    end = s.find("_20")
+    # Check if the file exists
+    if not os.path.isfile(state_file_path):
+        print(f"Error: path {path} does not contain a state.json file.")
+        exit()
 
-    # check if "out/" and "_20" exist in the string
-    if start == -1 or end == -1:
-        raise ValueError("Input string doesn't contain necessary patterns. Be sure that your saved run is in the out/ directory.")
+    # Read the contents of the state.json file
+    with open(state_file_path, "r") as state_file:
+        try:
+            state_data = json.load(state_file)
+        except json.JSONDecodeError:
+            print("Error: The state.json file is not valid JSON.")
+            exit()
 
-    # add the length of "out/" to start to actually start from the end of "out/"
-    start += len("out/")
+    # Check if the objective key exists in the state data
+    if "objective" not in state_data:
+        print("Error: The objective key is not present in the state.json file.")
+        exit()
 
-    # slice the string and return
-    return s[start:end]
+    return state_data["objective"]
+   
 
 def get_input(prompt, type_=None, min_=None, max_=None, range_=None):
     if min_ is not None and max_ is not None and max_ < min_:
@@ -62,8 +68,8 @@ def prompt_user():
             else:
                 print("Directory does not exist. Please try again.")
 
+        objective = get_objective(reload_path)
         print(f"Resuming execution from: {reload_path}")
-        objective = parse_objective(reload_path)
 
     print("Now we will do tool selection.")
     tools = ["MYGENE", "PUBMED"]

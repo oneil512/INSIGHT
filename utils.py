@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 import time
 import xml.etree.ElementTree as ET
 from collections import defaultdict, deque
@@ -549,6 +550,19 @@ def read_file(path, mode="r"):
     return contents
 
 
+def sanitize_dir_name(dir_name):
+    # Remove invalid characters
+    dir_name = re.sub(r'[<>:"/\|?*]', '_', dir_name)
+    
+    dir_name = dir_name.replace(' ', '_')
+    
+    # Remove leading period
+    if dir_name.startswith('.'):
+        dir_name = dir_name[1:]
+    
+    return dir_name
+
+
 def save(
     index,
     doc_store,
@@ -562,7 +576,7 @@ def save(
     summaries,
 ):
     # Make basepath.
-    path = os.path.join("./out", OBJECTIVE + "_" + current_datetime)
+    path = os.path.join("./out", sanitize_dir_name(OBJECTIVE) + "_" + current_datetime)
     make_dir(path)
 
     # Save llama index.
