@@ -57,7 +57,6 @@ graph TB;
 3. run `pip install -r requirements.txt`
 4. run `python main.py`
 
-You can specify your own parameters like what tools to use, what objective to use, how many iterations to run, and load your own data in by passing a path to the file. See the bottom of `main.py`
 
 ## Output
 
