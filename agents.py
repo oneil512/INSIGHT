@@ -10,7 +10,6 @@ from config import OPENAI_API_KEY
 from utils import generate_tool_prompt, get_gpt_chat_completion, get_gpt_completion, query_knowledge_base
 
 openai.api_key = OPENAI_API_KEY or os.environ["OPENAI_API_KEY"]
-tools = ["MYGENE", "PUBMED"]
 
 
 def boss_agent(

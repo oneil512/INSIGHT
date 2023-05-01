@@ -1,6 +1,7 @@
 from colorama import Fore
 import os
 import json
+from utils import get_input
 
 def get_objective(path):
     state_file_path = os.path.join(path, "state.json")
@@ -24,32 +25,6 @@ def get_objective(path):
         exit()
 
     return state_data["objective"]
-   
-
-def get_input(prompt, type_=None, min_=None, max_=None, range_=None):
-    if min_ is not None and max_ is not None and max_ < min_:
-        raise ValueError("min_ must be less than or equal to max_.")
-    while True:
-        ui = input(prompt)
-        if type_ is not None:
-            try:
-                ui = type_(ui)
-            except ValueError:
-                print(f"Input type must be {type_.__name__}!")
-                continue
-        if max_ is not None and ui > max_:
-            print(f"Input must be less than or equal to {max_}.")
-        elif min_ is not None and ui < min_:
-            print(f"Input must be greater than or equal to {min_}.")
-        elif range_ is not None and ui not in range_:
-            if isinstance(range_, range):
-                template = "Input must be between {} and {}."
-                print(template.format(range_.start, range_.stop))
-            else:
-                template = "Input must be {}."
-                print(template.format(", ".join(map(str, range_))))
-        else:
-            return ui
 
 
 def prompt_user():
@@ -72,7 +47,7 @@ def prompt_user():
         print(f"Resuming execution from: {reload_path}")
 
     print("Now we will do tool selection.")
-    tools = ["MYGENE", "PUBMED"]
+    tools = ["MYGENE", "PUBMED", "MYVARIANT"]
     tool_flags = {}
 
     for tool in tools:
