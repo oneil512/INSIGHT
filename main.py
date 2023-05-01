@@ -89,8 +89,8 @@ def run_(
     handle_results(result, index, doc_store, doc_store_task_key, task_id_counter, RESULT_CUTOFF)
 
     if index.docstore.docs:
-        executive_summary = query_knowledge_base(index, list_index=False)
-        insert_doc_llama_index(index=master_index, doc_id=str(task_id_counter), metadata=executive_summary)
+        executive_summary, citation_data = query_knowledge_base(index, list_index=False)
+        insert_doc_llama_index(index=master_index, doc_id=str(task_id_counter), data=executive_summary, metadata={"citation_data": citation_data})
         doc_store["tasks"][doc_store_task_key]["executive_summary"] = executive_summary
         summaries.append(executive_summary)
         index = create_index(api_key=api_key)
@@ -145,10 +145,10 @@ def run(
         my_data = read_file(my_data_path)
 
         temp_index = create_index(api_key=api_key)
-        insert_doc_llama_index(temp_index, metadata=my_data, doc_id="my_data")
-        executive_summary = query_knowledge_base(temp_index, list_index=False)
+        insert_doc_llama_index(temp_index, data=my_data, doc_id="my_data")
+        executive_summary, _ = query_knowledge_base(temp_index, list_index=False)
 
-        insert_doc_llama_index(index=master_index, doc_id="my_data", metadata=executive_summary)
+        insert_doc_llama_index(index=master_index, doc_id="my_data", data=executive_summary)
         summaries.append(executive_summary)
 
     doc_store = {"tasks": {}}
