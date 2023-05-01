@@ -25,7 +25,7 @@ from utils import (
 
 logging.getLogger("llama_index").setLevel(logging.WARNING)
 
-Entrez.email = EMAIL or os.environ["EMAIL"]
+Entrez.email = EMAIL
 MAX_TOKENS = 4097
 api_key = OPENAI_API_KEY or os.environ["OPENAI_API_KEY"]
 
@@ -104,7 +104,7 @@ def run(
     OBJECTIVE="",
     RESULT_CUTOFF=20000,
     MAX_ITERATIONS=1,
-    TOOLS=["MYGENE", "PUBMED"],
+    TOOLS=["MYGENE", "PUBMED", "MYVARIANT"],
     master_index=None,
     task_id_counter=1,
     task_list=deque(),
@@ -155,6 +155,7 @@ def run(
     tool_description_mapping = {
         "PUBMED": """2) Query PubMed API. This is useful for searching biomedical literature and studies on any medical subject. If you wish to make a task to create an API request to the PubMed API then simply say 'PUBMED:' followed by what you would like to search for. Example: 'PUBMED: Find recent developments in HIV research'""",
         "MYGENE": """1) Query mygene API. This is useful for finding information on specific genes, or genes associated with the search query. If you wish to make a task to create an API request to mygene then simply say 'MYGENE:' followed by what you would like to search for. Example: 'MYGENE: look up information on genes that are linked to cancer'""",
+        "MYVARIANT": """3) Query myvariant API. This is useful for finding information on specific genetic variants. If you wish to make a task to create an API request to myvariant then simply say 'MYVARIANT:' followed by the specific genetic variant or gene you are interested in. Example: 'MYVARIANT: look up information on the variant chr1:g.35367G>A'""",
     }
 
     tool_description = ""
@@ -219,5 +220,5 @@ if __name__ == "__main__":
 
     objective, tool_flags, iterations, reload_path, my_data_path = prompt_user()
     tools = [key for key, value in tool_flags.items() if value]
-    
+
     run(api_key=api_key, OBJECTIVE=objective, MAX_ITERATIONS=iterations, TOOLS=tools, my_data_path=my_data_path, reload_path=reload_path)

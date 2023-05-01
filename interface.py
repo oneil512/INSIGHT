@@ -72,7 +72,7 @@ def prompt_user():
         print(f"Resuming execution from: {reload_path}")
 
     print("Now we will do tool selection.")
-    tools = ["MYGENE", "PUBMED"]
+    tools = ["MYGENE", "PUBMED", "MYVARIANT"]
     tool_flags = {}
 
     for tool in tools:

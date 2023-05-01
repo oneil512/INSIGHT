@@ -46,13 +46,12 @@ graph TB;
 
 1. Sign up for [OpenAI](https://platform.openai.com/signup)
 
-2. Expose the following environment variables
-    - EMAIL
+2. Expose the following environment variable
     - OPENAI_API_KEY
 
     OR
 
-    Add your email and api key to the config file. IF YOU DO THIS, DO NOT COMMIT THEM WITH ANY VERSION CONTROL SYSTEM!
+    Add your api key to the config file. IF YOU DO THIS, DO NOT COMMIT THEM WITH ANY VERSION CONTROL SYSTEM!
 
 3. run `pip install -r requirements.txt`
 4. run `python main.py`

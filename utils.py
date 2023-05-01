@@ -19,6 +19,7 @@ from llama_index.indices.composability import ComposableGraph
 
 from api.mygene_api import mygene_api
 from api.pubmed_api import pubmed_api
+from api.myvariant_api import myvariant_api
 from config import OPENAI_API_KEY
 
 logging.getLogger("llama_index").setLevel(logging.WARNING)
@@ -29,7 +30,7 @@ logging.getLogger("llama_index").setLevel(logging.WARNING)
 
 
 MAX_TOKENS = 4097
-api_info_mapping = {"mygene": mygene_api, "PubMed": pubmed_api}
+api_info_mapping = {"mygene": mygene_api, "PubMed": pubmed_api, "myvariant": myvariant_api}
 
 api_key = OPENAI_API_KEY or os.environ["OPENAI_API_KEY"]
 openai.api_key = api_key
@@ -99,6 +100,45 @@ def execute_python(code: str):
         return
 
     return loc["ret"]
+
+
+def process_myvariant_result(results):
+
+    processed_result = []
+
+    for result in results:
+        variant_name = result.get("_id")
+        gene_affected = result.get("cadd", {}).get("gene", {}).get("genename")
+        consequence = result.get("cadd", {}).get("consequence")
+        cadd_score = result.get("cadd", {}).get("phred")
+        rsid = result.get("dbsnp", {}).get("rsid")
+        snpeff_ann = result.get("snpeff", {}).get("ann", [])
+
+        variant_data = ""
+        if variant_name:
+            variant_data += f"Variant Name: {variant_name}\n"
+        if gene_affected:
+            variant_data += f"Gene Affected: {gene_affected}\n"
+        if consequence:
+            variant_data += f"Consequence: {consequence}\n"
+        if cadd_score is not None:
+            variant_data += f"CADD Score: {cadd_score}\n"
+        if rsid:
+            variant_data += f"rsID: {rsid}\n"
+        if snpeff_ann:
+            for i, ann in enumerate(snpeff_ann[:20]):
+                variant_data += f"\nSnpEff Annotation {i+1}:\n"
+                variant_data += f"Effect: {ann.get('effect')}\n"
+                variant_data += f"Feature ID: {ann.get('feature_id')}\n"
+                variant_data += f"Feature Type: {ann.get('feature_type')}\n"
+                variant_data += f"Gene ID: {ann.get('gene_id')}\n"
+                variant_data += f"Gene Name: {ann.get('genename')}\n"
+                variant_data += f"HGVS.c: {ann.get('hgvs_c')}\n"
+                variant_data += f"Putative Impact: {ann.get('putative_impact')}\n"
+
+        processed_result.append(variant_data)
+
+    return processed_result
 
 
 def process_mygene_result(result):
@@ -284,8 +324,8 @@ def validate_llm_response(goal, response):
 
 
 def generate_tool_prompt(task):
-    if "PubChem" in task:
-        api_name = "PubChem"
+    if "MYVARIANT" in task:
+        api_name = "myvariant"
     elif "MYGENE" in task:
         api_name = "mygene"
     elif "PUBMED" in task:
@@ -329,25 +369,52 @@ def insert_doc_llama_index(index, doc_id, metadata, embedding=None):
 
 
 def handle_python_result(result, cache, task, doc_store, doc_store_task_key):
+    # Store the result code
+    doc_store["tasks"][doc_store_task_key]["result_code"] = result
+
+    # Execute the result
+    executed_result = execute_python(result)
+    executed_result = list(filter(bool, executed_result)) if isinstance(executed_result, list) else executed_result
+
+    if executed_result is None:
+        # The code did not run successfully
+        result = "NOTE: Code did not run succesfully\n\n" + result
+        print(Fore.BLUE + f"Task '{task}' failed. Code {result} did not run succesfully.")
+        cache.get(task, []).append(f"---\nNote: This call did not run succesfully\n{params}---\n")
+        return
+
+    # The code ran successfully
+    if not executed_result:
+        # The code returned no results
+        result = "NOTE: Code returned no results\n\n" + result
+        print(Fore.BLUE + f"\nTask '{task}' completed but returned no results")
+
+    # Get the parameters and process the result based on the task
+    if task in ["MYGENE", "PUBMED", "MYVARIANT"]:
+        preparam_text = {"MYGENE": "mygene.MyGeneInfo()", "PUBMED": "from Bio import Entrez", "MYVARIANT": "myvariant.MyVariantInfo()"}[task]
+        postparam_text = {"MYGENE": "gene_results = mg.query(", "PUBMED": "search_handle = Entrez.esearch(", "MYVARIANT": "variant_results = mv.getvariant("}[task]
+        process_result = {"MYGENE": process_mygene_result, "PUBMED": process_pubmed_result, "MYVARIANT": process_myvariant_result}[task]
+        
+        params = get_code_params(result, preparam_text, postparam_text)
+        note = "" if executed_result else "Note: This call returned no results\n"
+        cache[task].append(f"---\n{note}{params}---\n")
+        executed_result = process_result(executed_result)
+
+    return executed_result
+
+
+def handle_python_result(result, cache, task, doc_store, doc_store_task_key):
 
     results_returned = True
+    params = ""
     doc_store["tasks"][doc_store_task_key]["result_code"] = result
 
     executed_result = execute_python(result)
-
+    
     if type(executed_result) is list:
         executed_result = list(filter(lambda x : x, executed_result))
-
-    if executed_result is None:
-        result = "NOTE: Code did not run succesfully\n\n" + result
-        print(Fore.BLUE + f"Task '{task}' failed. Code {result} did not run succesfully.")
-        if "MYGENE" in task:
-            cache["MYGENE"].append(f"---\nNote: This call did not run succesfully\n{params}---\n")
-        if "PUBMED" in task:
-            cache["PUBMED"].append(f"---\nNote: This call did not run succesfully\n{params}---\n")
-
-        return
-
+    else:
+        executed_result = [executed_result]
 
     if (executed_result is not None) and (not executed_result): # Execution complete succesfully, but executed result was empty list
         results_returned = False
@@ -355,6 +422,17 @@ def handle_python_result(result, cache, task, doc_store, doc_store_task_key):
         
         print(Fore.BLUE + f"\nTask '{task}' completed but returned no results")
 
+    if "MYVARIANT" in task:
+        params = get_code_params(
+            result,
+            preparam_text="myvariant.MyVariantInfo()",
+            postparam_text="variant_results = mv.getvariant(",
+        )
+        if results_returned:
+            cache["MYVARIANT"].append(f"---\n{params}---\n")
+        else:
+            cache["MYVARIANT"].append(f"---\nNote: This call returned no results\n{params}---\n")
+        processed_result = process_myvariant_result(executed_result)
 
     if "MYGENE" in task:
         params = get_code_params(
@@ -366,7 +444,7 @@ def handle_python_result(result, cache, task, doc_store, doc_store_task_key):
             cache["MYGENE"].append(f"---\n{params}---\n")
         else:
             cache["MYGENE"].append(f"---\nNote: This call returned no results\n{params}---\n")
-        executed_result = process_mygene_result(executed_result)
+        processed_result = process_mygene_result(executed_result)
 
     if "PUBMED" in task:
         params = get_code_params(
@@ -378,15 +456,25 @@ def handle_python_result(result, cache, task, doc_store, doc_store_task_key):
             cache["PUBMED"].append(f"---\n{params}---\n")
         else:
             cache["PUBMED"].append(f"---\nNote: This call returned no results\n{params}---\n")
-        executed_result = process_pubmed_result(executed_result)
+        processed_result = process_pubmed_result(executed_result)
+
+    if executed_result is None:
+        result = "NOTE: Code did not run succesfully\n\n" + result
+        print(Fore.BLUE + f"Task '{task}' failed. Code {result} did not run succesfully.")
+        if "MYGENE" in task:
+            cache["MYGENE"].append(f"---\nNote: This call did not run succesfully\n{params}---\n")
+        if "PUBMED" in task:
+            cache["PUBMED"].append(f"---\nNote: This call did not run succesfully\n{params}---\n")
+        if "MYVARIANT" in task:
+            cache["MYVARIANT"].append(f"---\nNote: This call did not run succesfully\n{params}---\n")
+
+        return
 
 
-    return executed_result
+    return processed_result
 
 
 def handle_results(result, index, doc_store, doc_store_key, task_id_counter, RESULT_CUTOFF):
-    if type(result) is not list:
-        result = [result]
 
     for i, r in enumerate(result):
         r = str(r)[
