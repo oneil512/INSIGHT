@@ -36,6 +36,42 @@ api_key = OPENAI_API_KEY or os.environ["OPENAI_API_KEY"]
 openai.api_key = api_key
 
 
+def get_input(prompt, type_=None, min_=None, max_=None, range_=None):
+    if min_ is not None and max_ is not None and max_ < min_:
+        raise ValueError("min_ must be less than or equal to max_.")
+    while True:
+        ui = input(prompt)
+        if type_ is not None:
+            try:
+                ui = type_(ui)
+            except ValueError:
+                print(f"Input type must be {type_.__name__}!")
+                continue
+        if max_ is not None and ui > max_:
+            print(f"Input must be less than or equal to {max_}.")
+        elif min_ is not None and ui < min_:
+            print(f"Input must be greater than or equal to {min_}.")
+        elif range_ is not None and ui not in range_:
+            if isinstance(range_, range):
+                template = "Input must be between {} and {}."
+                print(template.format(range_.start, range_.stop))
+            else:
+                template = "Input must be {}."
+                print(template.format(", ".join(map(str, range_))))
+        else:
+            return ui
+
+
+def select_task(task_list):
+    # Task list is actually a Queue
+    task_list = list(task_list)
+    print('\n\n')
+    choice = get_input(Fore.LIGHTGREEN_EX + "\033[1mWhich task would you like to execute? \033[0m", type_=int, min_=1, max_=len(task_list)) - 1
+    task = task_list.pop(choice)
+
+    return task, deque(task_list)
+
+
 def num_tokens_from_string(string: str, encoding_name: str = "gpt2") -> int:
     """Returns the number of tokens in a text string."""
 
@@ -57,13 +93,13 @@ def get_key_results(index, objective, top_k=20):
     key_results = []
 
     queries = [
-        "Give a brief high level summary of all the data. Cite your sources with the citation information. Do not make up citation information.",
-        "Briefly list all the main points that the data covers. Cite your sources with the citation information. Do not make up citation information.",
-        "Give all of the key insights about the data. Cite your sources with the citation information. Do not make up citation information.",
+        "Give a brief high level summary of all the data. Cite your sources if and only if citation information exists in the data. Do not make up citation information.",
+        "Briefly list all the main points that the data covers. Cite your sources if and only if citation information exists in the data. Do not make up citation information.",
+        "Give all of the key insights about the data. Cite your sources if and only if citation information exists in the data. Do not make up citation information.",
         "Generate several creative hypotheses given the data.",
         "What are some high level research directions to explore further given the data?",
-        "Describe the key findings in great detail. Do not include filler words. Cite your sources with the citation information. Do not make up citation information.",
-        f"Do your best to answer the objective: {objective} given the information. Cite your sources with the citation information. Do not make up citation information.",
+        "Describe the key findings in great detail. Do not include filler words. Cite your sources if and only if citation information exists in the data. Do not make up citation information.",
+        f"Do your best to answer the objective: {objective} given the information. Cite your sources if and only if citation information exists in the data. Do not make up citation information.",
     ]
 
     for query in queries:

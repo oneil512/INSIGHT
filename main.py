@@ -20,7 +20,8 @@ from utils import (
     handle_python_result,
     handle_results,
     create_index,
-    read_file
+    read_file,
+    select_task,
 )
 
 logging.getLogger("llama_index").setLevel(logging.WARNING)
@@ -64,13 +65,13 @@ def run_(
         return
 
     print(Fore.WHITE + "\033[1m\n*****TASK LIST*****\n\033[0m")
-    for t in task_list:
-        print(t)
+    for i, t in enumerate(task_list):
+        print(f"{i + 1}) {t}")
 
-    task = task_list.popleft()
+    task, task_list = select_task(task_list)
 
     print(Fore.RED + "\033[1m\n*****NEXT TASK*****\n\033[0m")
-    print("task id: ", task_id_counter, "task: ", task)
+    print("task: ", task)
 
     result, result_is_python = worker_agent(OBJECTIVE, task, master_index, cache, TOOLS)
     completed_tasks.append(task)
@@ -153,9 +154,9 @@ def run(
     doc_store = {"tasks": {}}
 
     tool_description_mapping = {
-        "PUBMED": """2) Query PubMed API. This is useful for searching biomedical literature and studies on any medical subject. If you wish to make a task to create an API request to the PubMed API then simply say 'PUBMED:' followed by what you would like to search for. Example: 'PUBMED: Find recent developments in HIV research'""",
         "MYGENE": """1) Query mygene API. This is useful for finding information on specific genes, or genes associated with the search query. If you wish to make a task to create an API request to mygene then simply say 'MYGENE:' followed by what you would like to search for. Example: 'MYGENE: look up information on genes that are linked to cancer'""",
-        "MYVARIANT": """3) Query myvariant API. This is useful for finding information on specific genetic variants. If you wish to make a task to create an API request to myvariant then simply say 'MYVARIANT:' followed by the specific genetic variant or gene you are interested in. Example: 'MYVARIANT: look up information on the variant chr1:g.35367G>A'""",
+        "PUBMED": """2) Query PubMed API. This is useful for searching biomedical literature and studies on any medical subject. If you wish to make a task to create an API request to the PubMed API then simply say 'PUBMED:' followed by what you would like to search for. Example: 'PUBMED: Find recent developments in HIV research'""",
+        "MYVARIANT": """3) Query myvariant API. This is useful for finding information on specific genetic variants. If you wish to make a task to create an API request to myvariant then simply say 'MYVARIANT:' followed by the specific genetic variant you are interested in. You can specify by rsID, ClinVar, or in a standardized format for describing a genetic variant like 'chr1:g.35367G>A'. Example: 'MYVARIANT: look up information on the variant chr1:g.35367G>A'""",
     }
 
     tool_description = ""
