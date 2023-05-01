@@ -15,7 +15,7 @@ def query_data(index):
             if query.lower() == "exit":
                 break
 
-            reponse = query_knowledge_base(
+            reponse, citation_data = query_knowledge_base(
                 index,
                 query=query,
                 response_mode="tree_summarize",
@@ -23,7 +23,7 @@ def query_data(index):
                 list_index=False
             )
 
-            print(reponse)
+            print(reponse, citation_data)
 
         except Exception as e:
             # If there is any error in the user's input, print an error message

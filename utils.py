@@ -66,8 +66,11 @@ def select_task(task_list):
     # Task list is actually a Queue
     task_list = list(task_list)
     print('\n\n')
-    choice = get_input(Fore.LIGHTGREEN_EX + "\033[1mWhich task would you like to execute? \033[0m", type_=int, min_=1, max_=len(task_list)) - 1
-    task = task_list.pop(choice)
+    choice = get_input(Fore.LIGHTGREEN_EX + "\033[1mWhich task would you like to execute? Type 0 to create your own task! \033[0m", type_=int, min_=0, max_=len(task_list))
+    if choice == 0:
+        task = input(Fore.LIGHTGREEN_EX + "\033[1mWrite your task! \033[0m")
+    else:    
+        task = task_list.pop(choice - 1)
 
     return task, deque(task_list)
 
@@ -80,7 +83,7 @@ def num_tokens_from_string(string: str, encoding_name: str = "gpt2") -> int:
     return num_tokens
 
 
-def get_key_results(index, objective, top_k=20):
+def get_key_results(index, objective, top_k=20, additional_queries=[]):
     """Run final queries over retrieved documents and store in doc_store."""
 
     if not index.docstore.docs:
@@ -93,27 +96,28 @@ def get_key_results(index, objective, top_k=20):
     key_results = []
 
     queries = [
-        "Give a brief high level summary of all the data. Cite your sources if and only if citation information exists in the data. Do not make up citation information.",
-        "Briefly list all the main points that the data covers. Cite your sources if and only if citation information exists in the data. Do not make up citation information.",
-        "Give all of the key insights about the data. Cite your sources if and only if citation information exists in the data. Do not make up citation information.",
+        "Give a brief high level summary of all the data.",
+        "Briefly list all the main points that the data covers.",
+        "Give all of the key insights about the data.",
         "Generate several creative hypotheses given the data.",
         "What are some high level research directions to explore further given the data?",
-        "Describe the key findings in great detail. Do not include filler words. Cite your sources if and only if citation information exists in the data. Do not make up citation information.",
-        f"Do your best to answer the objective: {objective} given the information. Cite your sources if and only if citation information exists in the data. Do not make up citation information.",
+        "Describe the key findings in great detail. Do not include filler words.",
+        f"Do your best to answer the objective: {objective} given the information.",
     ]
 
     for query in queries:
         print(Fore.CYAN + f"\nCOMPILING RESULT {query}\n")
         res = None
         try:
-            res = query_knowledge_base(index=index, query=query, list_index=False, top_k=top_k)
+            res, citation_data = query_knowledge_base(index=index, query=query, list_index=False, top_k=top_k)
         except Exception as e:
             print(f"Exception getting key result {query}, error {e}")
 
         if res:
             query = f"## {query}\n\n"
-            html = markdown.markdown(res)
-            key_results.append((query, f"{html}\n\n\n\n"))
+            res_html = markdown.markdown(res)
+            res_citation = markdown.markdown(citation_data)
+            key_results.append((query, f"{res_html}\n\n### Citations\n\n{res_citation}\n\n"))
 
     print(Fore.CYAN + f"\nRESULTS COMPILED. SAVED TO DIRECTORY `out`\n")
 
@@ -142,15 +146,19 @@ def process_myvariant_result(results):
 
     processed_result = []
 
+    if not isinstance(results, list):
+        results = [results]
+
     for result in results:
         variant_name = result.get("_id")
         gene_affected = result.get("cadd", {}).get("gene", {}).get("genename")
         consequence = result.get("cadd", {}).get("consequence")
         cadd_score = result.get("cadd", {}).get("phred")
         rsid = result.get("dbsnp", {}).get("rsid")
-        snpeff_ann = result.get("snpeff", {}).get("ann", [])
 
         variant_data = ""
+        citation_data = ""
+
         if variant_name:
             variant_data += f"Variant Name: {variant_name}\n"
         if gene_affected:
@@ -161,27 +169,20 @@ def process_myvariant_result(results):
             variant_data += f"CADD Score: {cadd_score}\n"
         if rsid:
             variant_data += f"rsID: {rsid}\n"
-        if snpeff_ann:
-            for i, ann in enumerate(snpeff_ann[:20]):
-                variant_data += f"\nSnpEff Annotation {i+1}:\n"
-                variant_data += f"Effect: {ann.get('effect')}\n"
-                variant_data += f"Feature ID: {ann.get('feature_id')}\n"
-                variant_data += f"Feature Type: {ann.get('feature_type')}\n"
-                variant_data += f"Gene ID: {ann.get('gene_id')}\n"
-                variant_data += f"Gene Name: {ann.get('genename')}\n"
-                variant_data += f"HGVS.c: {ann.get('hgvs_c')}\n"
-                variant_data += f"Putative Impact: {ann.get('putative_impact')}\n"
 
-        processed_result.append(variant_data)
+        processed_result.append((variant_data,{"citation_data": citation_data}))
 
     return processed_result
 
 
-def process_mygene_result(result):
+def process_mygene_result(results):
     processed_result = []
 
+    if not isinstance(results, list):
+        results = [results]
+
     # Each result will be split into 2 documents: summary and pathway
-    for json_data in result:
+    for json_data in results:
 
         name = json_data.get("name")
         refseq_genomic = json_data.get("refseq", {}).get("genomic", [])
@@ -194,6 +195,8 @@ def process_mygene_result(result):
         generif = json_data.get("generif")
 
         output_summary = ""
+        citation_data = ""
+
         # Summary
         if name:
             output_summary += f"Gene Name: {name}\n"
@@ -223,13 +226,13 @@ def process_mygene_result(result):
                         output_summary += text
 
                         if pubmed:
-                            output_summary += f" Pubmed ID: {pubmed}"
+                            citation_data += f" Pubmed ID: {pubmed}"
 
         output_summary = output_summary.strip()
 
         #logging.info(f"Mygene Summary result {name}, length is {str(len(output_summary))}")
         if output_summary:
-            processed_result.append(output_summary)
+            processed_result.append((output_summary, {"citation_data": citation_data}))
         
 
         # Pathway
@@ -252,6 +255,8 @@ def process_mygene_result(result):
 
 
             output_pathway = ""
+            citation_data = ""
+
             if name:
                 output_pathway += f"Gene Name: {name}\n"
             if symbol:
@@ -279,41 +284,50 @@ def process_mygene_result(result):
 
             output_pathway = output_pathway.strip()
             if output_pathway:
-                processed_result.append(output_pathway)
+                processed_result.append((output_pathway,{"citation_data": citation_data}))
 
     return processed_result
 
 
 def process_pubmed_result(result):
-    root = ET.fromstring(result)
+    try:
+        root = ET.fromstring(result)
+    except Exception as e:
+        print(f"Cannot parse pubmed result, expected xml. {e}")
+        print("Adding whole document. Note this will lead to suboptimal results.")
+        return result if isinstance(result, list) else [result]
+    
     processed_result = []
 
     for article in root:
         res_ = ""
+        citation_data = ""
         for title in article.iter("Title"):
             res_ += f"{title.text}\n"
+            citation_data += f"{title.text}\n"
         for abstract in article.iter("AbstractText"):
             res_ += f"{abstract.text}\n"
         for author in article.iter("Author"):
             try:
-                res_ += f"{author.find('LastName').text}"
-                res_ += f", {author.find('ForeName').text}\n"
+                citation_data += f"{author.find('LastName').text}"
+                citation_data += f", {author.find('ForeName').text}\n"
             except:
                 pass
         for journal in article.iter("Journal"):
             res_ += f"{journal.find('Title').text}\n"
+            citation_data += f"{journal.find('Title').text}\n"
         for volume in article.iter("Volume"):
-            res_ += f"{volume.text}\n"
+            citation_data += f"{volume.text}\n"
         for issue in article.iter("Issue"):
-            res_ += f"{issue.text}\n"
+            citation_data += f"{issue.text}\n"
         for pubdate in article.iter("PubDate"):
             try:
                 year = pubdate.find("Year").text
-                res_ += f"{year}"
+                citation_data += f"{year}"
                 month = pubdate.find("Month").text
-                res_ += f"-{month}"
+                citation_data += f"-{month}"
                 day = pubdate.find("Day").text
-                res_ += f"-{day}\n"
+                citation_data += f"-{day}\n"
             except:
                 pass
         for doi in article.iter("ELocationID"):
@@ -321,7 +335,7 @@ def process_pubmed_result(result):
                 res_ += f"{doi.text}\n"
 
         if res_:
-            processed_result.append(res_)
+            processed_result.append((res_,{"citation_data": citation_data}))
 
     return processed_result
 
@@ -397,10 +411,10 @@ def get_ada_embedding(text):
     ][0]["embedding"]
 
 
-def insert_doc_llama_index(index, doc_id, metadata, embedding=None):
+def insert_doc_llama_index(index, doc_id, data, metadata={}, embedding=None):
     if not embedding:
-        embedding = get_ada_embedding(metadata)
-    doc = Document(text=metadata, embedding=embedding, doc_id=doc_id)
+        embedding = get_ada_embedding(data)
+    doc = Document(text=data, embedding=embedding, doc_id=doc_id, extra_info=metadata)
     index.insert(doc)
 
 
@@ -449,8 +463,6 @@ def handle_python_result(result, cache, task, doc_store, doc_store_task_key):
     
     if type(executed_result) is list:
         executed_result = list(filter(lambda x : x, executed_result))
-    else:
-        executed_result = [executed_result]
 
     if (executed_result is not None) and (not executed_result): # Execution complete succesfully, but executed result was empty list
         results_returned = False
@@ -513,25 +525,27 @@ def handle_python_result(result, cache, task, doc_store, doc_store_task_key):
 def handle_results(result, index, doc_store, doc_store_key, task_id_counter, RESULT_CUTOFF):
 
     for i, r in enumerate(result):
-        r = str(r)[
+        res, metadata = r[0], r[1]
+        res = str(res)[
             :RESULT_CUTOFF
         ]  # Occasionally an enormous result will slow the program to a halt. Not ideal to lose results but putting in place for now.
-        vectorized_data = get_ada_embedding(r)
+        vectorized_data = get_ada_embedding(res)
         task_id = f"doc_id_{task_id_counter}_{i}"
-        insert_doc_llama_index(index=index, doc_id=task_id, metadata=r, embedding=vectorized_data)
+        insert_doc_llama_index(index=index, doc_id=task_id, data=res, metadata=metadata, embedding=vectorized_data)
 
         doc_store["tasks"][doc_store_key]["results"].append(
             {
                 "task_id_counter": task_id_counter,
                 "vectorized_data": vectorized_data,
-                "output": r,
+                "output": res,
+                "metadata": metadata,
             }
         )
 
 
 def query_knowledge_base(
     index,
-    query="Give a detailed but terse overview of all the information. Start with a high level summary and then go into details. Do not include any further instruction. Do not include filler words. Include citation information if it is present. Do not make up citation information.",
+    query="Give a detailed but terse overview of all the information. Start with a high level summary and then go into details. Do not include any further instruction. Do not include filler words.",
     response_mode="tree_summarize",
     top_k=50,
     list_index=False
@@ -549,7 +563,17 @@ def query_knowledge_base(
         query_response = index.query(
             query, similarity_top_k=top_k, response_mode=response_mode
         )
-    return query_response.response
+
+    extra_info = ""
+    if query_response.extra_info:
+        try:
+            extra_info = [x.get("citation_data") for x in query_response.extra_info.values()]
+            if not any(extra_info):
+                extra_info = []
+        except Exception as e:
+            print("Issue getting extra info from llama index")
+
+    return query_response.response, '\n\n'.join(extra_info)
 
 
 def create_index(api_key,summaries=[], temperature=0.0, model_name="text-davinci-003", max_tokens=2000):
