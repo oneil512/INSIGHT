@@ -635,7 +635,7 @@ def create_list_index(api_key, summaries=[], temperature=0.0, model_name="text-d
 
 @backoff.on_exception(
     partial(backoff.expo, max_value=50),
-    (openai.error.RateLimitError, openai.error.APIError),
+    (openai.error.RateLimitError, openai.error.APIError, openai.error.APIConnectionError, openai.error.ServiceUnavailableError, openai.error.Timeout),
 )
 def get_gpt_completion(
     prompt,
@@ -659,7 +659,7 @@ def get_gpt_completion(
 
 @backoff.on_exception(
     partial(backoff.expo, max_value=50),
-    (openai.error.RateLimitError, openai.error.APIError),
+    (openai.error.RateLimitError, openai.error.APIError, openai.error.APIConnectionError, openai.error.ServiceUnavailableError, openai.error.Timeout),
 )
 def get_gpt_chat_completion(
     system_prompt, user_prompt, model="gpt-3.5-turbo", temp=0.0
