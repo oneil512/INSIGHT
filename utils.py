@@ -386,7 +386,7 @@ def generate_tool_prompt(task):
 
     api_info = api_info_mapping[api_name]
 
-    prompt = f"""You have access to query the {api_name} API. If a task starts with '{api_name.upper()}:' then you should create the code to query the {api_name} API based off the documentation and return the code to complete your task. If you use the {api_name} API, do not answer with words, simply answer with the code to query the API and then cease output. Be sure that it is a valid API call that will execute in a python interpreter.
+    prompt = f"""You have access to query the {api_name} API. If a task starts with '{api_name.upper()}:' then you should create the code to query the {api_name} API based off the documentation and return the code to complete your task. If you use the {api_name} API, do not answer with words, simply write the parameters used to call the function then cease output. Be sure it is valid python that will execute in a python interpreter.
 ---
 Here is the {api_name} documentation
 {api_info}
@@ -456,8 +456,15 @@ def handle_python_result(result, cache, task, doc_store, doc_store_task_key):
 def handle_python_result(result, cache, task, doc_store, doc_store_task_key):
 
     results_returned = True
-    params = ""
+    params = result
     doc_store["tasks"][doc_store_task_key]["result_code"] = result
+    tool = task.split(":")[0]
+    if tool == "MYGENE":
+        result = "from api.mygene_wrapper import mygene_wrapper\n" + result + "\nret = mygene_wrapper(query_term, size, from_)"
+    elif tool == "MYVARIANT":
+        result = "from api.myvariant_wrapper import myvariant_wrapper\n" + result + "\nret = myvariant_wrapper(query_term)"
+    elif tool == "PUBMED":
+        result = "from api.pubmed_wrapper import pubmed_wrapper\n" + result + "\nret = pubmed_wrapper(query_term, size, from_)"
 
     executed_result = execute_python(result)
     
@@ -471,11 +478,6 @@ def handle_python_result(result, cache, task, doc_store, doc_store_task_key):
         print(Fore.BLUE + f"\nTask '{task}' completed but returned no results")
 
     if "MYVARIANT" in task:
-        params = get_code_params(
-            result,
-            preparam_text="myvariant.MyVariantInfo()",
-            postparam_text="variant_results = mv.getvariant(",
-        )
         if results_returned:
             cache["MYVARIANT"].append(f"---\n{params}---\n")
         else:
@@ -483,11 +485,6 @@ def handle_python_result(result, cache, task, doc_store, doc_store_task_key):
         processed_result = process_myvariant_result(executed_result)
 
     if "MYGENE" in task:
-        params = get_code_params(
-            result,
-            preparam_text="mygene.MyGeneInfo()",
-            postparam_text="gene_results = mg.query(",
-        )
         if results_returned:
             cache["MYGENE"].append(f"---\n{params}---\n")
         else:
@@ -495,16 +492,14 @@ def handle_python_result(result, cache, task, doc_store, doc_store_task_key):
         processed_result = process_mygene_result(executed_result)
 
     if "PUBMED" in task:
-        params = get_code_params(
-            result,
-            preparam_text="from Bio import Entrez",
-            postparam_text="search_handle = Entrez.esearch(",
-        )
         if results_returned:
             cache["PUBMED"].append(f"---\n{params}---\n")
         else:
             cache["PUBMED"].append(f"---\nNote: This call returned no results\n{params}---\n")
-        processed_result = process_pubmed_result(executed_result)
+
+        processed_result = []
+        for res in executed_result:
+            processed_result += process_pubmed_result(res)
 
     if executed_result is None:
         result = "NOTE: Code did not run succesfully\n\n" + result

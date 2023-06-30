@@ -103,7 +103,8 @@ Note: To be sure that TASKS is a valid python list, it should always start with 
     tasks = content[content.find("TASKS") + len("TASKS") :].strip()
 
     # parsed_tasks = parser("Parse the following text so that it is a valid python list. Do not alter the elements in any way.", tasks)
-    new_task_list = literal_eval(tasks)
+    #new_task_list = literal_eval(tasks)
+    new_task_list = ["MYGENE: look up brca1"]
 
     print(Fore.CYAN + "\033[1m\n*****BOSS THOUGHTS*****\n\033[0m")
     print(Fore.CYAN + thoughts)

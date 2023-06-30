@@ -1,12 +1,7 @@
 myvariant_api = """
 
-API RULES
-    - Every code block that calls to the mygene api must start with these two lines:
-        import myvariant
-        mv = myvariant.MyVariantInfo()
-    - Every code block must end by assigning the output to a variable called 'ret'
-    - Do not change the variable names.
-    - The only thing you should change is the query_term
+RULES
+    - Decide what query_term to use. It could be an rsID, a ClinVar ID, or a variant in the format chr1:g.35367G>A
 
 API PARAMETERS
     - query_term: What is being searched
@@ -21,13 +16,7 @@ You can also search with an rsID or ClinVar
 
 ===
 
-import myvariant
-mv = myvariant.MyVariantInfo()
-
 query_term = 'chr1:g.35367G>A'
 
-ret = mv.getvariant(query_term)
-
-===
 
 """.strip()
