@@ -14,6 +14,7 @@ import openai
 import tiktoken
 from colorama import Fore
 from langchain import OpenAI
+from langchain.chat_models import ChatOpenAI
 from llama_index import Document, GPTSimpleVectorIndex, LLMPredictor, ServiceContext, GPTListIndex
 from llama_index.indices.composability import ComposableGraph
 
@@ -98,10 +99,8 @@ def get_key_results(index, objective, top_k=20, additional_queries=[]):
     queries = [
         "Give a brief high level summary of all the data.",
         "Briefly list all the main points that the data covers.",
-        "Give all of the key insights about the data.",
         "Generate several creative hypotheses given the data.",
         "What are some high level research directions to explore further given the data?",
-        "Describe the key findings in great detail. Do not include filler words.",
         f"Do your best to answer the objective: {objective} given the information.",
     ]
 
@@ -464,7 +463,7 @@ def handle_python_result(result, cache, task, doc_store, doc_store_task_key):
     elif tool == "MYVARIANT":
         result = "from api.myvariant_wrapper import myvariant_wrapper\n" + result + "\nret = myvariant_wrapper(query_term)"
     elif tool == "PUBMED":
-        result = "from api.pubmed_wrapper import pubmed_wrapper\n" + result + "\nret = pubmed_wrapper(query_term, size, from_)"
+        result = "from api.pubmed_wrapper import pubmed_wrapper\n" + result + "\nret = pubmed_wrapper(query_term, retmax, retstart)"
 
     executed_result = execute_python(result)
     
@@ -497,9 +496,7 @@ def handle_python_result(result, cache, task, doc_store, doc_store_task_key):
         else:
             cache["PUBMED"].append(f"---\nNote: This call returned no results\n{params}---\n")
 
-        processed_result = []
-        for res in executed_result:
-            processed_result += process_pubmed_result(res)
+        processed_result = process_pubmed_result(executed_result)
 
     if executed_result is None:
         result = "NOTE: Code did not run succesfully\n\n" + result
@@ -571,9 +568,9 @@ def query_knowledge_base(
     return query_response.response, '\n\n'.join(extra_info)
 
 
-def create_index(api_key,summaries=[], temperature=0.0, model_name="text-davinci-003", max_tokens=2000):
+def create_index(api_key,summaries=[], temperature=0.0, model_name="gpt-3.5-turbo-16k", max_tokens=2000):
     llm_predictor = LLMPredictor(
-        llm=OpenAI(
+        llm=ChatOpenAI(
             temperature=temperature,
             openai_api_key=api_key,
             model_name=model_name,
@@ -657,7 +654,7 @@ def get_gpt_completion(
     (openai.error.RateLimitError, openai.error.APIError, openai.error.APIConnectionError, openai.error.ServiceUnavailableError, openai.error.Timeout),
 )
 def get_gpt_chat_completion(
-    system_prompt, user_prompt, model="gpt-3.5-turbo", temp=0.0
+    system_prompt, user_prompt, model="gpt-3.5-turbo-16k", temp=0.0
 ):
     response = openai.ChatCompletion.create(
         model=model,

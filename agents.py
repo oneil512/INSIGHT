@@ -61,7 +61,9 @@ THOUGHTS
 (Reason about what tasks to add, change, delete, or reprioritize given your objective and all the information you have)
 
 TASKS
-(Python array of tasks)
+(Python list of tasks)
+
+Note: To be sure that TASKS is a valid python list, it should always start with [ and always end with ]
 
 """.strip()
 
@@ -75,23 +77,6 @@ Here is an executive summary of the information gathered so far: {executive_summ
 Note: If a task has already been completed, do not write that same task again in the task list. If you would like a worker to continue or redo a task, be sure to word it a little differently so you don't get the same result.
 
 ===
-
-Please update the task list and follow this format.
-
-THOUGHTS
-Reason about what tasks to add, change, delete, or reprioritize given your objective and the information you have
-
-TASKS
-Python array of tasks
-
-===
-
-Here is an example of the tasks list. Be sure that it is valid python:
-
-TASKS
-["Research frog habitats", "Find all species of trees", "Get world population", "Retrieve facts about the american civil war"]
-
-Note: To be sure that TASKS is a valid python list, it should always start with [ and always end with ]
     
     """.strip()
 
@@ -102,9 +87,7 @@ Note: To be sure that TASKS is a valid python list, it should always start with 
     ].strip()
     tasks = content[content.find("TASKS") + len("TASKS") :].strip()
 
-    # parsed_tasks = parser("Parse the following text so that it is a valid python list. Do not alter the elements in any way.", tasks)
-    #new_task_list = literal_eval(tasks)
-    new_task_list = ["MYGENE: look up brca1"]
+    new_task_list = literal_eval(tasks)
 
     print(Fore.CYAN + "\033[1m\n*****BOSS THOUGHTS*****\n\033[0m")
     print(Fore.CYAN + thoughts)
