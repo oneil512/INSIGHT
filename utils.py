@@ -15,8 +15,17 @@ import tiktoken
 from colorama import Fore
 from langchain import OpenAI
 from langchain.chat_models import ChatOpenAI
-from llama_index import Document, GPTSimpleVectorIndex, LLMPredictor, ServiceContext, GPTListIndex
+from llama_index import Document, GPTVectorStoreIndex, LLMPredictor, ServiceContext, GPTListIndex
 from llama_index.indices.composability import ComposableGraph
+from llama_index.retrievers import VectorIndexRetriever
+from llama_index.query_engine import RetrieverQueryEngine
+from llama_index import StorageContext, load_index_from_storage, ServiceContext
+
+from llama_index import (
+    VectorStoreIndex,
+    ResponseSynthesizer,
+)
+
 
 from api.mygene_api import mygene_api
 from api.pubmed_api import pubmed_api
@@ -413,7 +422,9 @@ def get_ada_embedding(text):
 def insert_doc_llama_index(index, doc_id, data, metadata={}, embedding=None):
     if not embedding:
         embedding = get_ada_embedding(data)
-    doc = Document(text=data, embedding=embedding, doc_id=doc_id, extra_info=metadata)
+    doc = Document(text=data, embedding=embedding, doc_id=doc_id, metadata=metadata)
+    doc.excluded_llm_metadata_keys = ['citation_data']
+    doc.excluded_embed_metadata_keys = ['citation_data']
     index.insert(doc)
 
 
@@ -546,20 +557,36 @@ def query_knowledge_base(
         print(Fore.RED + "NO INFORMATION IN LLAMA INDEX")
         return
     
+
+    # configure retriever
+    retriever = VectorIndexRetriever(
+        index=index, 
+        similarity_top_k=top_k,
+    )
+
+    # configure response synthesizer
+    response_synthesizer = ResponseSynthesizer.from_args(
+        response_mode="tree_summarize",
+    )
+
+    # assemble query engine
+    query_engine = RetrieverQueryEngine(
+        retriever=retriever,
+        response_synthesizer=response_synthesizer,
+    )
+    
     if list_index:
         query_response = index.query(
             query, response_mode="default"
         )
     else:
         # From llama index docs: Empirically, setting response_mode="tree_summarize" also leads to better summarization results.
-        query_response = index.query(
-            query, similarity_top_k=top_k, response_mode=response_mode
-        )
+        query_response = query_engine.query(query)
 
     extra_info = ""
-    if query_response.extra_info:
+    if query_response.metadata:
         try:
-            extra_info = [x.get("citation_data") for x in query_response.extra_info.values()]
+            extra_info = [x.get("citation_data") for x in query_response.metadata.values()]
             if not any(extra_info):
                 extra_info = []
         except Exception as e:
@@ -568,7 +595,7 @@ def query_knowledge_base(
     return query_response.response, '\n\n'.join(extra_info)
 
 
-def create_index(api_key,summaries=[], temperature=0.0, model_name="gpt-3.5-turbo-16k", max_tokens=2000):
+def create_index(api_key,summaries=[], temperature=0.0, model_name="gpt-3.5-turbo-16k", max_tokens=6000):
     llm_predictor = LLMPredictor(
         llm=ChatOpenAI(
             temperature=temperature,
@@ -579,10 +606,13 @@ def create_index(api_key,summaries=[], temperature=0.0, model_name="gpt-3.5-turb
     )
     documents = []
     for i, summary in enumerate(summaries):
-        documents.append(Document(text=summary, doc_id=str(i)))
+        doc = Document(text=summary, doc_id=str(i))
+        doc.excluded_llm_metadata_keys = ['citation_data']
+        doc.excluded_embed_metadata_keys = ['citation_data']
+        documents.append(doc)
 
-    service_context = ServiceContext.from_defaults(llm_predictor=llm_predictor)
-    return GPTSimpleVectorIndex(documents, service_context=service_context)
+    service_context = ServiceContext.from_defaults(llm_predictor=llm_predictor, chunk_size=4000)
+    return GPTVectorStoreIndex(documents, service_context=service_context)
 
 
 def create_graph_index(api_key, indicies=[], summaries=[], temperature=0.0, model_name="text-davinci-003", max_tokens=2000):
@@ -720,7 +750,7 @@ def save(
     make_dir(path)
 
     # Save llama index.
-    index.save_to_disk(os.path.join(path, "index.json"))
+    index.storage_context.persist(persist_dir=os.path.join(path, "index.json"))
 
     # Save program state.
     state = {
@@ -776,17 +806,19 @@ def save(
 
 def load(path):
     llm_predictor = LLMPredictor(
-        llm=OpenAI(
+        llm=ChatOpenAI(
             temperature=0,
             openai_api_key=api_key,
-            model_name="text-davinci-003",
-            max_tokens=2000,
+            model_name="gpt-3.5-turbo-16k",
+            max_tokens=6000,
         )
     )
-    service_context = ServiceContext.from_defaults(llm_predictor=llm_predictor)
-    index = GPTSimpleVectorIndex.load_from_disk(
-        os.path.join(path, "index.json"), service_context=service_context
-    )
+    service_context = ServiceContext.from_defaults(llm_predictor=llm_predictor, chunk_size=4000)
+
+    # rebuild storage context
+    storage_context = StorageContext.from_defaults(persist_dir=os.path.join(path, "index.json"))
+
+    index = load_index_from_storage(storage_context=storage_context, service_context=service_context)
     state_path = os.path.join(path, "state.json")
     if os.path.exists(state_path):
         with open(state_path, "r") as f:
