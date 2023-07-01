@@ -3,7 +3,7 @@ from config import EMAIL, OPENAI_API_KEY
 from utils import query_knowledge_base
 import time
 from langchain import OpenAI
-from llama_index import GPTSimpleVectorIndex, LLMPredictor, ServiceContext
+from llama_index import GPTVectorStoreIndex, LLMPredictor, ServiceContext
 
 
 def query_data(index):
@@ -47,7 +47,7 @@ if __name__ == "__main__":
         )
     )
     service_context = ServiceContext.from_defaults(llm_predictor=llm_predictor)
-    index = GPTSimpleVectorIndex.load_from_disk(
+    index = GPTVectorStoreIndex.load_from_disk(
         PATH_TO_INDEX, service_context=service_context
     )
 
