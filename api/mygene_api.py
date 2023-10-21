@@ -13,7 +13,8 @@ API PARAMETERS
 
 API EXAMPLES
 
-Here is an example showing the parameters used to query mygene for genes related to diabetes:
+Here is an example showing the parameters used to query mygene for genes related to diabetes
+Please note the newline character at the end of each line.
 
 ===
 

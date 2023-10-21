@@ -15,6 +15,7 @@ API PARAMETERS
 API EXAMPLES
 
 Here is an example showing how to find a list of 10 ids of pubmed articles about breast cancer.
+Please note the newline character at the end of each line.
 
 ===
 

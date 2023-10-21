@@ -86,14 +86,15 @@ def run_(
     if result_is_python:
         result = handle_python_result(result, cache, task, doc_store, doc_store_task_key)
 
-    handle_results(result, index, doc_store, doc_store_task_key, task_id_counter, RESULT_CUTOFF)
+    if result:
+        handle_results(result, index, doc_store, doc_store_task_key, task_id_counter, RESULT_CUTOFF)
 
-    if index.docstore.docs:
-        executive_summary, citation_data = query_knowledge_base(index, list_index=False)
-        insert_doc_llama_index(index=master_index, doc_id=str(task_id_counter), data=executive_summary, metadata={"citation_data": citation_data})
-        doc_store["tasks"][doc_store_task_key]["executive_summary"] = executive_summary
-        summaries.append(executive_summary)
-        index = create_index(api_key=api_key)
+        if index.docstore.docs:
+            executive_summary, citation_data = query_knowledge_base(index, list_index=False)
+            insert_doc_llama_index(index=master_index, doc_id=str(task_id_counter), data=executive_summary, metadata={"citation_data": citation_data})
+            doc_store["tasks"][doc_store_task_key]["executive_summary"] = executive_summary
+            summaries.append(executive_summary)
+            index = create_index(api_key=api_key)
 
     return result, task, task_list, summaries
 

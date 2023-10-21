@@ -428,40 +428,6 @@ def insert_doc_llama_index(index, doc_id, data, metadata={}, embedding=None):
     index.insert(doc)
 
 
-def handle_python_result(result, cache, task, doc_store, doc_store_task_key):
-    # Store the result code
-    doc_store["tasks"][doc_store_task_key]["result_code"] = result
-
-    # Execute the result
-    executed_result = execute_python(result)
-    executed_result = list(filter(bool, executed_result)) if isinstance(executed_result, list) else executed_result
-
-    if executed_result is None:
-        # The code did not run successfully
-        result = "NOTE: Code did not run succesfully\n\n" + result
-        print(Fore.BLUE + f"Task '{task}' failed. Code {result} did not run succesfully.")
-        cache.get(task, []).append(f"---\nNote: This call did not run succesfully\n{params}---\n")
-        return
-
-    # The code ran successfully
-    if not executed_result:
-        # The code returned no results
-        result = "NOTE: Code returned no results\n\n" + result
-        print(Fore.BLUE + f"\nTask '{task}' completed but returned no results")
-
-    # Get the parameters and process the result based on the task
-    if task in ["MYGENE", "PUBMED", "MYVARIANT"]:
-        preparam_text = {"MYGENE": "mygene.MyGeneInfo()", "PUBMED": "from Bio import Entrez", "MYVARIANT": "myvariant.MyVariantInfo()"}[task]
-        postparam_text = {"MYGENE": "gene_results = mg.query(", "PUBMED": "search_handle = Entrez.esearch(", "MYVARIANT": "variant_results = mv.getvariant("}[task]
-        process_result = {"MYGENE": process_mygene_result, "PUBMED": process_pubmed_result, "MYVARIANT": process_myvariant_result}[task]
-        
-        params = get_code_params(result, preparam_text, postparam_text)
-        note = "" if executed_result else "Note: This call returned no results\n"
-        cache[task].append(f"---\n{note}{params}---\n")
-        executed_result = process_result(executed_result)
-
-    return executed_result
-
 
 def handle_python_result(result, cache, task, doc_store, doc_store_task_key):
 
@@ -477,6 +443,7 @@ def handle_python_result(result, cache, task, doc_store, doc_store_task_key):
         result = "from api.pubmed_wrapper import pubmed_wrapper\n" + result + "\nret = pubmed_wrapper(query_term, retmax, retstart)"
 
     executed_result = execute_python(result)
+
     
     if type(executed_result) is list:
         executed_result = list(filter(lambda x : x, executed_result))
