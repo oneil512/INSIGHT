@@ -1,5 +1,7 @@
 # INSIGHT
 
+Please visit https://insightai.dev/project for our managed solution with many more features!
+
 Insight is an autonomous AI that can do medical research. It has a boss agent that takes an objective and an executive summary of the tasks completed already and their results and creates a task list. A worker agent picks up a task from the list and completes it, saving the results to llama index. The boss gets informed of the results and changes/reprioritizes the task list. The workers can call into the pubmed and mygene APIs (more to come). The workers also get context from llama index to help complete their tasks.
 
 INSIGHT can also reload and continue runs, and also load any human readable data file and use it along side the other findings!
